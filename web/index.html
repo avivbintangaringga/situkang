@@ -9,10 +9,8 @@
       ;(function () {
         try {
           var stored = localStorage.getItem('situkang-theme')
-          var dark = stored
-            ? stored === 'dark'
-            : window.matchMedia('(prefers-color-scheme: dark)').matches
-          if (dark) document.documentElement.classList.add('dark')
+          // Dark is the default; only an explicit "light" choice opts out.
+          if (stored !== 'light') document.documentElement.classList.add('dark')
         } catch (error) {
           /* storage unavailable */
         }
