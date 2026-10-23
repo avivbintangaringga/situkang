@@ -51,7 +51,7 @@ func AllWhatsAppText(detail Detail) string {
 	fmt.Fprintf(&b, "Periode: %s\n\n", periodRange(detail))
 
 	for _, line := range detail.Workers {
-		fmt.Fprintf(&b, "%s (%s): %s\n", line.Name, line.Role, formatRupiah(line.Net))
+		fmt.Fprintf(&b, "%s: %s\n", line.Name, formatRupiah(line.Net))
 	}
 
 	b.WriteString("\n")

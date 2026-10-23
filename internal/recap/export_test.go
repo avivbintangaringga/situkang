@@ -136,8 +136,8 @@ func TestAllWhatsAppTextIsCompactWithOverallTotal(t *testing.T) {
 
 	for _, expected := range []string{
 		"Periode: 06 Jan 2026 - 11 Jan 2026",
-		"Budi (Tukang Batu): Rp 775.000",
-		"Andi (Tukang Kayu): Rp 500.000",
+		"Budi: Rp 775.000",
+		"Andi: Rp 500.000",
 		"Gaji kotor: Rp 1.325.000",
 		"Kas bon: - Rp 150.000",
 		"Tambahan: + Rp 50.000",
