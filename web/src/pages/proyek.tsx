@@ -1,7 +1,9 @@
-import { addMonths, format, getDaysInMonth, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { format } from 'date-fns'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 
+import { MonthCalendar, type CalendarMarker } from '@/components/month-calendar'
 import { ProjectFormSheet } from '@/components/project-form-sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectTimeline, useProjects } from '@/hooks/use-projects'
 import { useWorkers } from '@/hooks/use-workers'
 import { formatDateShort } from '@/lib/format'
-import type { Project, ProjectStatus, TimelineProject } from '@/lib/types'
+import type { ProjectStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const statusLabel: Record<ProjectStatus, string> = {
@@ -18,70 +20,21 @@ const statusLabel: Record<ProjectStatus, string> = {
   ditunda: 'Ditunda',
 }
 
+const projectColors = [
+  'bg-sky-500',
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-violet-500',
+  'bg-emerald-500',
+  'bg-cyan-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-indigo-500',
+  'bg-teal-500',
+]
+
 function currentMonth(): string {
   return format(new Date(), 'yyyy-MM')
-}
-
-function dayISO(month: string, day: number): string {
-  return `${month}-${String(day).padStart(2, '0')}`
-}
-
-function TimelineRow({ project, month, days }: { project: TimelineProject; month: string; days: number }) {
-  const tagged = new Set(project.tagged_days)
-  const cells = Array.from({ length: days }, (_, index) => {
-    const day = index + 1
-    const iso = dayISO(month, day)
-    const inSpan =
-      (!project.start_date || iso >= project.start_date) &&
-      (!project.end_date || iso <= project.end_date)
-    return { day, iso, inSpan, isTagged: tagged.has(iso) }
-  })
-
-  return (
-    <li className="space-y-1.5 rounded-xl border p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{project.name}</p>
-          <p className="text-muted-foreground text-xs">
-            {project.start_date && project.end_date
-              ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
-              : project.start_date
-                ? `Mulai ${formatDateShort(project.start_date)}`
-                : project.end_date
-                  ? `Selesai ${formatDateShort(project.end_date)}`
-                  : 'Tanpa tanggal'}
-          </p>
-        </div>
-        <Badge variant="secondary" className="shrink-0 text-xs">
-          {statusLabel[project.status]}
-        </Badge>
-      </div>
-
-      <div className="flex gap-1 overflow-hidden">
-        <div
-          role="img"
-          aria-label={`Linimasa ${project.name}`}
-          className="grid w-full gap-px"
-          style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}
-        >
-          {cells.map((cell) => (
-            <span
-              key={cell.iso}
-              title={`${cell.day}${cell.isTagged ? ' · tukang hadir' : ''}`}
-              className={cn(
-                'h-5 rounded-[2px]',
-                cell.isTagged
-                  ? 'bg-primary'
-                  : cell.inSpan
-                    ? 'bg-primary/25'
-                    : 'bg-muted',
-              )}
-            />
-          ))}
-        </div>
-      </div>
-    </li>
-  )
 }
 
 export function ProyekPage() {
@@ -93,24 +46,31 @@ export function ProyekPage() {
   const workerNames = new Map((workers.data ?? []).map((worker) => [worker.id, worker.name]))
 
   const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Project | null>(null)
 
-  function openCreate() {
-    setEditing(null)
-    setFormOpen(true)
+  const colorByProject = new Map<number, string>()
+  const markers: Record<string, CalendarMarker[]> = {}
+
+  for (const [index, project] of (timeline.data?.projects ?? []).entries()) {
+    const color = projectColors[index % projectColors.length]
+    colorByProject.set(project.id, color)
+    for (const date of project.tagged_days) {
+      const list = markers[date] ?? []
+      list.push({ className: cn('size-1.5 rounded-full', color), label: project.name })
+      markers[date] = list
+    }
   }
 
-  function openEdit(project: Project) {
-    setEditing(project)
-    setFormOpen(true)
+  for (const [date, list] of Object.entries(markers)) {
+    if (list.length <= 3) continue
+    const hidden = list.length - 3
+    markers[date] = [
+      ...list.slice(0, 3),
+      {
+        className: 'text-[8px] leading-none font-medium text-muted-foreground',
+        label: `+${hidden} proyek lain`,
+      },
+    ]
   }
-
-  function shiftMonth(offset: number) {
-    setMonth(format(addMonths(parseISO(`${month}-01`), offset), 'yyyy-MM'))
-  }
-
-  const days = timeline.data?.days ?? getDaysInMonth(parseISO(`${month}-01`))
-  const monthLabel = format(parseISO(`${month}-01`), 'MMMM yyyy')
 
   return (
     <div className="space-y-4">
@@ -121,39 +81,16 @@ export function ProyekPage() {
             Daftar proyek dan linimasa kehadiran tukang.
           </p>
         </div>
-        <Button className="h-9 shrink-0 px-3" onClick={openCreate}>
+        <Button className="h-11 shrink-0 px-3" onClick={() => setFormOpen(true)}>
           <Plus className="size-4" aria-hidden />
           Tambah
         </Button>
       </div>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Linimasa</h2>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              className="size-9 p-0"
-              onClick={() => shiftMonth(-1)}
-              aria-label="Bulan sebelumnya"
-            >
-              <ChevronLeft className="size-5" aria-hidden />
-            </Button>
-            <span className="min-w-[7.5rem] text-center text-sm font-medium capitalize">
-              {monthLabel}
-            </span>
-            <Button
-              variant="outline"
-              className="size-9 p-0"
-              onClick={() => shiftMonth(1)}
-              aria-label="Bulan berikutnya"
-            >
-              <ChevronRight className="size-5" aria-hidden />
-            </Button>
-          </div>
-        </div>
+        <h2 className="text-sm font-semibold">Linimasa</h2>
 
-        {timeline.isPending && <Skeleton className="h-40 w-full rounded-xl" />}
+        {timeline.isPending && <Skeleton className="h-72 w-full rounded-xl" />}
 
         {timeline.isError && (
           <div className="rounded-xl border p-6 text-center">
@@ -164,7 +101,7 @@ export function ProyekPage() {
             </p>
             <Button
               variant="outline"
-              className="mt-4 h-9 px-5"
+              className="mt-4 h-11 px-5"
               onClick={() => void timeline.refetch()}
             >
               Coba lagi
@@ -174,15 +111,7 @@ export function ProyekPage() {
 
         {!timeline.isPending && !timeline.isError && timeline.data && (
           <>
-            <div
-              className="text-muted-foreground grid gap-px px-3 text-center text-[9px] leading-4"
-              style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}
-              aria-hidden
-            >
-              {Array.from({ length: days }, (_, index) => (
-                <span key={index}>{index + 1}</span>
-              ))}
-            </div>
+            <MonthCalendar month={month} onMonthChange={setMonth} markers={markers} />
 
             {timeline.data.projects.length === 0 ? (
               <div className="rounded-xl border p-6 text-center">
@@ -193,29 +122,25 @@ export function ProyekPage() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2">
+              <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {timeline.data.projects.map((project) => (
-                  <TimelineRow
-                    key={project.id}
-                    project={project}
-                    month={month}
-                    days={days}
-                  />
+                  <li key={project.id} className="flex items-center gap-2 text-xs">
+                    <span
+                      className={cn(
+                        'size-2.5 shrink-0 rounded-full',
+                        colorByProject.get(project.id),
+                      )}
+                      aria-hidden
+                    />
+                    <span className="truncate">{project.name}</span>
+                  </li>
                 ))}
               </ul>
             )}
-            <p className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
-              <span className="flex items-center gap-1">
-                <span className="bg-primary/25 size-3 rounded-[2px]" aria-hidden />
-                Rentang proyek
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="bg-primary size-3 rounded-[2px]" aria-hidden />
-                Hari tercatat
-              </span>
-            </p>
+
             <p className="text-muted-foreground text-xs">
-              Hari tercatat adalah hari saat tukang yang ditugaskan hadir.
+              Titik menandai hari saat tukang yang ditugaskan hadir. Maksimal tiga
+              titik per hari.
             </p>
           </>
         )}
@@ -240,7 +165,7 @@ export function ProyekPage() {
             </p>
             <Button
               variant="outline"
-              className="mt-4 h-9 px-5"
+              className="mt-4 h-11 px-5"
               onClick={() => void projects.refetch()}
             >
               Coba lagi
@@ -254,7 +179,7 @@ export function ProyekPage() {
             <p className="text-muted-foreground mt-1 text-sm">
               Tambahkan proyek untuk menugaskan tukang ke tempat kerja.
             </p>
-            <Button className="mt-4 h-9 px-5" onClick={openCreate}>
+            <Button className="mt-4 h-11 px-5" onClick={() => setFormOpen(true)}>
               Tambah proyek
             </Button>
           </div>
@@ -275,9 +200,8 @@ export function ProyekPage() {
 
               return (
                 <li key={project.id}>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(project)}
+                  <Link
+                    to={`/proyek/${project.id}`}
                     className="bg-card hover:bg-muted/50 flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors"
                   >
                     <div className="min-w-0 space-y-1">
@@ -295,7 +219,7 @@ export function ProyekPage() {
                     <Badge variant="secondary" className="shrink-0 text-xs">
                       {statusLabel[project.status]}
                     </Badge>
-                  </button>
+                  </Link>
                 </li>
               )
             })}
@@ -303,7 +227,7 @@ export function ProyekPage() {
         )}
       </section>
 
-      <ProjectFormSheet open={formOpen} onOpenChange={setFormOpen} project={editing} />
+      <ProjectFormSheet open={formOpen} onOpenChange={setFormOpen} project={null} />
     </div>
   )
 }

@@ -126,10 +126,10 @@ export function RekapPage() {
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">Rekap #{recap.id}</span>
+                    <span className="truncate font-medium">{recap.name}</span>
                     <span
                       className={cn(
-                        'rounded-full px-2 py-0.5 text-xs',
+                        'shrink-0 rounded-full px-2 py-0.5 text-xs',
                         recap.status === 'final'
                           ? 'bg-muted text-muted-foreground'
                           : 'bg-primary/10 text-primary',
@@ -138,6 +138,7 @@ export function RekapPage() {
                       {recap.status === 'final' ? 'Final' : 'Draft'}
                     </span>
                   </div>
+                  <p className="text-muted-foreground text-xs">#{recap.id}</p>
                   <p className="text-muted-foreground truncate text-sm">
                     {recap.start_date && recap.end_date
                       ? `${formatDateShort(recap.start_date)} - ${formatDate(recap.end_date)}`

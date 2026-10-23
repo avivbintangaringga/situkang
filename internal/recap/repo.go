@@ -9,6 +9,7 @@ import (
 // Recap is a weekly pay period. Only one draft may exist at a time.
 type Recap struct {
 	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
 	Mode        string  `json:"mode"`
 	StartDate   *string `json:"start_date"`
 	EndDate     *string `json:"end_date"`
@@ -135,12 +136,13 @@ func getRecap(ctx context.Context, q queryer, id int64) (Recap, error) {
 	if finalizedAt.Valid {
 		recap.FinalizedAt = &finalizedAt.String
 	}
+	recap.Name = recapName(recap.CreatedAt)
 	return recap, nil
 }
 
 func listRecaps(ctx context.Context, db *sql.DB) ([]Recap, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, mode, start_date, end_date, status, created_at, finalized_at FROM recaps ORDER BY id DESC`)
+		`SELECT id, mode, start_date, end_date, status, created_at, finalized_at FROM recaps ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list recaps: %w", err)
 	}
@@ -166,6 +168,7 @@ func listRecaps(ctx context.Context, db *sql.DB) ([]Recap, error) {
 		if finalizedAt.Valid {
 			recap.FinalizedAt = &finalizedAt.String
 		}
+		recap.Name = recapName(recap.CreatedAt)
 		recaps = append(recaps, recap)
 	}
 	if err := rows.Err(); err != nil {

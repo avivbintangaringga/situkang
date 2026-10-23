@@ -1,9 +1,10 @@
-import { addDays, format, startOfWeek } from 'date-fns'
+import { addDays, endOfMonth, format, parseISO, startOfMonth, startOfWeek } from 'date-fns'
 import { ArrowLeft, Lock, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
+import { MonthCalendar, type CalendarMarker } from '@/components/month-calendar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useWorkerWeek } from '@/hooks/use-attendance'
@@ -13,10 +14,19 @@ import { useWorker } from '@/hooks/use-workers'
 import {
   formatDate,
   formatDateShort,
+  formatDays,
   formatRupiah,
   quartersLabel,
+  todayISO,
 } from '@/lib/format'
 import type { CashAdvance } from '@/lib/types'
+
+const quarterColors: Record<number, string> = {
+  1: 'bg-amber-400',
+  2: 'bg-sky-400',
+  3: 'bg-violet-400',
+  4: 'bg-emerald-500',
+}
 
 export function WorkerDetailPage() {
   const params = useParams()
@@ -28,6 +38,7 @@ export function WorkerDetailPage() {
 
   const [advanceOpen, setAdvanceOpen] = useState(false)
   const [editingAdvance, setEditingAdvance] = useState<CashAdvance | null>(null)
+  const [month, setMonth] = useState(() => todayISO().slice(0, 7))
 
   // oxlint-disable-next-line react/purity -- one snapshot of "this week" per mount
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -35,7 +46,32 @@ export function WorkerDetailPage() {
   const to = format(addDays(weekStart, 6), 'yyyy-MM-dd')
   const week = useWorkerWeek(workerId, from, to)
 
+  const monthStart = startOfMonth(parseISO(`${month}-01`))
+  const monthEnd = endOfMonth(monthStart)
+  const monthFrom = format(monthStart, 'yyyy-MM-dd')
+  const monthTo = format(monthEnd, 'yyyy-MM-dd')
+  const monthAttendance = useWorkerWeek(workerId, monthFrom, monthTo)
+
   const total = (week.data ?? []).reduce((sum, entry) => sum + entry.earned, 0)
+  const monthQuarters = (monthAttendance.data ?? []).reduce(
+    (sum, entry) => sum + entry.quarters,
+    0,
+  )
+  const monthEarned = (monthAttendance.data ?? []).reduce(
+    (sum, entry) => sum + entry.earned,
+    0,
+  )
+
+  const monthMarkers: Record<string, CalendarMarker[]> = {}
+  for (const entry of monthAttendance.data ?? []) {
+    monthMarkers[entry.date] = [
+      {
+        className: `${quarterColors[entry.quarters] ?? 'bg-muted-foreground'} size-2 rounded-full`,
+        label: `${quartersLabel(entry.quarters)} · ${formatRupiah(entry.earned)}`,
+      },
+    ]
+  }
+
   const advancesTotal = (advances.data ?? []).reduce(
     (sum, advance) => sum + advance.amount,
     0,
@@ -161,6 +197,51 @@ export function WorkerDetailPage() {
                   )
                 })}
               </ul>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold">Absensi bulanan</h2>
+              <span className="text-muted-foreground text-xs">
+                {formatDays(monthQuarters)} hari · {formatRupiah(monthEarned)}
+              </span>
+            </div>
+
+            {monthAttendance.isPending && <Skeleton className="h-72 w-full rounded-xl" />}
+
+            {monthAttendance.isError && (
+              <div className="rounded-xl border p-6 text-center text-sm">
+                Tidak dapat memuat absensi bulan ini.
+              </div>
+            )}
+
+            {!monthAttendance.isPending && !monthAttendance.isError && (
+              <>
+                <MonthCalendar
+                  month={month}
+                  onMonthChange={setMonth}
+                  markers={monthMarkers}
+                />
+                <p className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-amber-400" aria-hidden />
+                    ¼ hari
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-sky-400" aria-hidden />
+                    ½ hari
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-violet-400" aria-hidden />
+                    ¾ hari
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
+                    Penuh
+                  </span>
+                </p>
+              </>
             )}
           </section>
 

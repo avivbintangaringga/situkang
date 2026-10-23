@@ -37,6 +37,26 @@ type Timeline struct {
 	Projects []TimelineProject `json:"projects"`
 }
 
+// CalendarWorker is one assigned worker who attended on a calendar day.
+type CalendarWorker struct {
+	WorkerID int64  `json:"worker_id"`
+	Name     string `json:"name"`
+	Quarters int    `json:"quarters"`
+}
+
+// CalendarDay is one day with attendance by assigned workers.
+type CalendarDay struct {
+	Date    string           `json:"date"`
+	Workers []CalendarWorker `json:"workers"`
+}
+
+// ProjectCalendar is the monthly calendar view for one project.
+type ProjectCalendar struct {
+	Month     string        `json:"month"`
+	Days      []CalendarDay `json:"days"`
+	WorkerIDs []int64       `json:"worker_ids"`
+}
+
 type projectData struct {
 	Name      string
 	StartDate *string
@@ -318,4 +338,40 @@ func nullableText(value string) any {
 		return nil
 	}
 	return value
+}
+
+type calendarEntry struct {
+	Date     string
+	WorkerID int64
+	Name     string
+	Quarters int
+}
+
+func calendarDays(ctx context.Context, db *sql.DB, projectID int64, from, to string) ([]calendarEntry, error) {
+	const query = `
+		SELECT a.date, a.worker_id, w.name, a.quarters
+		FROM attendances a
+		JOIN project_workers pw ON pw.worker_id = a.worker_id
+		JOIN workers w ON w.id = a.worker_id
+		WHERE pw.project_id = ? AND a.date BETWEEN ? AND ?
+		ORDER BY a.date, w.name COLLATE NOCASE`
+
+	rows, err := db.QueryContext(ctx, query, projectID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("load project calendar: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]calendarEntry, 0)
+	for rows.Next() {
+		var entry calendarEntry
+		if err := rows.Scan(&entry.Date, &entry.WorkerID, &entry.Name, &entry.Quarters); err != nil {
+			return nil, fmt.Errorf("scan project calendar: %w", err)
+		}
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load project calendar: %w", err)
+	}
+	return entries, nil
 }

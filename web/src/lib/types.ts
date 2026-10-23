@@ -40,6 +40,23 @@ export type ProjectTimeline = {
   projects: TimelineProject[]
 }
 
+export type ProjectCalendarWorker = {
+  worker_id: number
+  name: string
+  quarters: number
+}
+
+export type ProjectCalendarDay = {
+  date: string
+  workers: ProjectCalendarWorker[]
+}
+
+export type ProjectCalendar = {
+  month: string
+  days: ProjectCalendarDay[]
+  worker_ids: number[]
+}
+
 export type AttendanceDayRow = {
   worker_id: number
   name: string
@@ -80,6 +97,7 @@ export type RecapMode = 'since_monday' | 'all_unsettled' | 'custom'
 
 export type Recap = {
   id: number
+  name: string
   mode: RecapMode
   start_date: string | null
   end_date: string | null

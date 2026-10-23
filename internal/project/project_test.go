@@ -318,6 +318,58 @@ func TestTimeline(t *testing.T) {
 	if _, err := svc.Timeline(ctx, "2026-13"); err != ErrInvalidMonth {
 		t.Fatalf("invalid month error = %v, want ErrInvalidMonth", err)
 	}
+	if _, err := svc.Timeline(ctx, "2026-1"); err != ErrInvalidMonth {
+		t.Fatalf("unpadded month error = %v, want ErrInvalidMonth", err)
+	}
+}
+
+func TestCalendar(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
+	addWorker(t, sqlDB, 2, "Andi")
+
+	created, err := svc.Create(ctx, Input{
+		Name: "Rumah", Status: "aktif", StartDate: "2026-01-05", EndDate: "2026-01-20",
+		WorkerIDs: []int64{1, 2},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	addAttendance(t, sqlDB, 1, 1, "2026-01-07")
+	addAttendance(t, sqlDB, 2, 2, "2026-01-07")
+	addAttendance(t, sqlDB, 3, 1, "2026-01-08")
+
+	result, err := svc.Calendar(ctx, created.ID, "2026-01")
+	if err != nil {
+		t.Fatalf("Calendar: %v", err)
+	}
+	if result.Month != "2026-01" {
+		t.Fatalf("month = %q", result.Month)
+	}
+	if len(result.WorkerIDs) != 2 || result.WorkerIDs[0] != 1 || result.WorkerIDs[1] != 2 {
+		t.Fatalf("worker ids = %v", result.WorkerIDs)
+	}
+	if len(result.Days) != 2 {
+		t.Fatalf("days = %+v, want 2", result.Days)
+	}
+	if result.Days[0].Date != "2026-01-07" || len(result.Days[0].Workers) != 2 {
+		t.Fatalf("first day = %+v", result.Days[0])
+	}
+	if result.Days[0].Workers[0].Name != "Andi" || result.Days[0].Workers[0].Quarters != 4 {
+		t.Fatalf("first worker = %+v", result.Days[0].Workers[0])
+	}
+	if result.Days[1].Date != "2026-01-08" || len(result.Days[1].Workers) != 1 {
+		t.Fatalf("second day = %+v", result.Days[1])
+	}
+
+	if _, err := svc.Calendar(ctx, created.ID, "2026-1"); err != ErrInvalidMonth {
+		t.Fatalf("invalid month = %v, want ErrInvalidMonth", err)
+	}
+	if _, err := svc.Calendar(ctx, 99, "2026-01"); err != ErrNotFound {
+		t.Fatalf("missing project = %v, want ErrNotFound", err)
+	}
 }
 
 func newTestRouter(t *testing.T, svc *Service) chi.Router {
@@ -327,6 +379,7 @@ func newTestRouter(t *testing.T, svc *Service) chi.Router {
 	r.Get("/projects", h.List)
 	r.Post("/projects", h.Create)
 	r.Get("/projects/timeline", h.Timeline)
+	r.Get("/projects/{id}/calendar", h.Calendar)
 	r.Get("/projects/{id}", h.Get)
 	r.Put("/projects/{id}", h.Update)
 	r.Delete("/projects/{id}", h.Delete)
@@ -385,6 +438,16 @@ func TestHandler(t *testing.T) {
 	rec = doJSON(t, r, http.MethodGet, "/projects/timeline?month=2026-01", "")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"days":31`) {
 		t.Fatalf("timeline status = %d body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doJSON(t, r, http.MethodGet, "/projects/1/calendar?month=2026-01", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"month":"2026-01"`) {
+		t.Fatalf("calendar status = %d body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doJSON(t, r, http.MethodGet, "/projects/1/calendar?month=2026-1", "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid calendar month status = %d, want 400", rec.Code)
 	}
 
 	rec = doJSON(t, r, http.MethodDelete, "/projects/1", "")

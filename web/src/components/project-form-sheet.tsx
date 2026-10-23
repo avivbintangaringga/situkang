@@ -67,6 +67,7 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   project?: Project | null
+  onDeleted?: () => void
 }
 
 const emptyValues: ProjectForm = {
@@ -90,7 +91,7 @@ function valuesFor(project?: Project | null): ProjectForm {
   }
 }
 
-export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
+export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Props) {
   const isEdit = Boolean(project)
   const create = useCreateProject()
   const update = useUpdateProject(project?.id ?? 0)
@@ -144,6 +145,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
       onSuccess: () => {
         setConfirmDelete(false)
         onOpenChange(false)
+        onDeleted?.()
       },
     })
   }

@@ -168,11 +168,10 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 // Timeline returns the month view: every relevant project plus the days its
 // assigned workers attended within that month.
 func (s *Service) Timeline(ctx context.Context, month string) (Timeline, error) {
-	start, err := time.Parse("2006-01", month)
+	first, err := parseMonth(month)
 	if err != nil {
-		return Timeline{}, ErrInvalidMonth
+		return Timeline{}, err
 	}
-	first := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
 	days := daysInMonth(first)
 	last := first.AddDate(0, 0, days-1)
 
@@ -192,6 +191,61 @@ func (s *Service) Timeline(ctx context.Context, month string) (Timeline, error) 
 		}
 	}
 	return result, nil
+}
+
+// Calendar returns the days in a month when the project's assigned workers
+// attended, together with the assigned worker ids.
+func (s *Service) Calendar(ctx context.Context, id int64, month string) (ProjectCalendar, error) {
+	first, err := parseMonth(month)
+	if err != nil {
+		return ProjectCalendar{}, err
+	}
+	if id <= 0 {
+		return ProjectCalendar{}, ErrNotFound
+	}
+	project, err := s.Get(ctx, id)
+	if err != nil {
+		return ProjectCalendar{}, err
+	}
+
+	days := daysInMonth(first)
+	last := first.AddDate(0, 0, days-1)
+	entries, err := calendarDays(ctx, s.db, id, clock.FormatDate(first), clock.FormatDate(last))
+	if err != nil {
+		return ProjectCalendar{}, err
+	}
+
+	result := ProjectCalendar{
+		Month:     month,
+		Days:      make([]CalendarDay, 0),
+		WorkerIDs: project.WorkerIDs,
+	}
+	index := make(map[string]int)
+	for _, entry := range entries {
+		position, ok := index[entry.Date]
+		if !ok {
+			position = len(result.Days)
+			index[entry.Date] = position
+			result.Days = append(result.Days, CalendarDay{Date: entry.Date, Workers: []CalendarWorker{}})
+		}
+		result.Days[position].Workers = append(result.Days[position].Workers, CalendarWorker{
+			WorkerID: entry.WorkerID,
+			Name:     entry.Name,
+			Quarters: entry.Quarters,
+		})
+	}
+	return result, nil
+}
+
+func parseMonth(month string) (time.Time, error) {
+	if len(month) != 7 || month[4] != '-' {
+		return time.Time{}, ErrInvalidMonth
+	}
+	parsed, err := time.Parse("2006-01", month)
+	if err != nil || parsed.Format("2006-01") != month {
+		return time.Time{}, ErrInvalidMonth
+	}
+	return time.Date(parsed.Year(), parsed.Month(), 1, 0, 0, 0, 0, time.UTC), nil
 }
 
 func relevant(item TimelineProject, first, last time.Time) bool {

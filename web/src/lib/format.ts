@@ -28,6 +28,11 @@ export function formatDate(value: string): string {
   return format(parseISO(value), 'EEE, d MMM yyyy', { locale: localeId })
 }
 
+/** Formats a YYYY-MM-DD date as "Sabtu, 10 Oktober 2026". */
+export function formatLongDate(value: string): string {
+  return format(parseISO(value), 'EEEE, d MMMM yyyy', { locale: localeId })
+}
+
 /** Formats a YYYY-MM-DD date as "12 Jan". */
 export function formatDateShort(value: string): string {
   return format(parseISO(value), 'd MMM', { locale: localeId })

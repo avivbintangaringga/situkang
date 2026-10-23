@@ -188,6 +188,7 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Get("/projects", projectHandler.List)
 			protected.Post("/projects", projectHandler.Create)
 			protected.Get("/projects/timeline", projectHandler.Timeline)
+			protected.Get("/projects/{id}/calendar", projectHandler.Calendar)
 			protected.Get("/projects/{id}", projectHandler.Get)
 			protected.Put("/projects/{id}", projectHandler.Update)
 			protected.Delete("/projects/{id}", projectHandler.Delete)

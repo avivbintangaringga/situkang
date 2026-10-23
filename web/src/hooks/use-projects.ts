@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
-import type { Project, ProjectStatus, ProjectTimeline } from '@/lib/types'
+import type {
+  Project,
+  ProjectCalendar,
+  ProjectStatus,
+  ProjectTimeline,
+} from '@/lib/types'
 
 export type ProjectInput = {
   name: string
@@ -29,6 +34,23 @@ export function useProjectTimeline(month: string) {
   return useQuery({
     queryKey: ['projects', 'timeline', month],
     queryFn: () => api.get<ProjectTimeline>(`/projects/timeline?month=${month}`),
+  })
+}
+
+export function useProject(id: number) {
+  return useQuery({
+    queryKey: ['projects', 'detail', id],
+    queryFn: () => api.get<Project>(`/projects/${id}`),
+    enabled: id > 0,
+  })
+}
+
+export function useProjectCalendar(id: number, month: string) {
+  return useQuery({
+    queryKey: ['projects', 'calendar', id, month],
+    queryFn: () =>
+      api.get<ProjectCalendar>(`/projects/${id}/calendar?month=${month}`),
+    enabled: id > 0,
   })
 }
 

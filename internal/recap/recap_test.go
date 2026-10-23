@@ -567,3 +567,50 @@ func TestFinalizeRejectsNonDraft(t *testing.T) {
 		t.Fatalf("delete final = %v, want ErrNotDraft", err)
 	}
 }
+
+func TestListOrdersByCreatedAtAndFormatsName(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO recaps (id, mode, status, created_at) VALUES
+			(1, 'all_unsettled', 'final', '2026-10-09T03:00:00Z'),
+			(2, 'all_unsettled', 'final', '2026-10-10T17:30:00Z'),
+			(3, 'since_monday', 'final', '2026-10-10T10:00:00Z')`); err != nil {
+		t.Fatalf("seed recaps: %v", err)
+	}
+
+	recaps, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(recaps) != 3 {
+		t.Fatalf("recaps = %d, want 3", len(recaps))
+	}
+	if recaps[0].ID != 2 || recaps[1].ID != 3 || recaps[2].ID != 1 {
+		t.Fatalf("order = [%d %d %d], want [2 3 1]", recaps[0].ID, recaps[1].ID, recaps[2].ID)
+	}
+	if recaps[0].Name != "Rekap Minggu, 11 Oktober 2026" {
+		t.Fatalf("name = %q, want Jakarta date", recaps[0].Name)
+	}
+	if recaps[2].Name != "Rekap Jumat, 9 Oktober 2026" {
+		t.Fatalf("name = %q", recaps[2].Name)
+	}
+
+	created, err := svc.Create(ctx, CreateInput{Mode: "all_unsettled"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.Name != "Rekap Senin, 12 Januari 2026" {
+		t.Fatalf("created name = %q", created.Name)
+	}
+}
+
+func TestRecapNameFallback(t *testing.T) {
+	if got := recapName("2026-10-10"); got != "Rekap Sabtu, 10 Oktober 2026" {
+		t.Fatalf("date-only name = %q", got)
+	}
+	if got := recapName("not a date"); got != "Rekap" {
+		t.Fatalf("invalid name = %q", got)
+	}
+}

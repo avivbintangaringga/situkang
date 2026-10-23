@@ -105,7 +105,7 @@ export function RekapDetailPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Rekap #{recap.id}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{recap.name}</h1>
             <span
               className={cn(
                 'rounded-full px-2 py-0.5 text-xs',
@@ -117,6 +117,7 @@ export function RekapDetailPage() {
               {recap.status === 'final' ? 'Final' : 'Draft'}
             </span>
           </div>
+          <p className="text-muted-foreground text-xs">#{recap.id}</p>
           <p className="text-muted-foreground text-sm">
             {formatDate(data.period_start)} - {formatDate(data.period_end)}
           </p>

@@ -115,6 +115,24 @@ func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, result)
 }
 
+// Calendar returns one project's attendance days for a month.
+func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
+	id, ok := projectID(w, r)
+	if !ok {
+		return
+	}
+	month := r.URL.Query().Get("month")
+	if month == "" {
+		month = h.svc.clock.Now().Format("2006-01")
+	}
+	result, err := h.svc.Calendar(r.Context(), id, month)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, result)
+}
+
 func (r request) input() Input {
 	return Input{
 		Name:      r.Name,
