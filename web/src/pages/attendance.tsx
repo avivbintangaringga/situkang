@@ -114,6 +114,9 @@ export function AttendancePage() {
   }, [draft, dirty, currentDate, saveDay])
 
   function setQuarters(workerId: number, quarters: number) {
+    // Ignore taps while a save is in flight so the response cannot overwrite
+    // a newer choice.
+    if (saving) return
     setDraft((previous) => ({ ...previous, [workerId]: quarters }))
     setDirty(true)
   }
@@ -397,7 +400,7 @@ export function AttendancePage() {
                     <button
                       key={value}
                       type="button"
-                      disabled={row.locked}
+                      disabled={row.locked || saving}
                       aria-pressed={active}
                       aria-label={option.aria}
                       onClick={() => setQuarters(row.worker_id, value)}
