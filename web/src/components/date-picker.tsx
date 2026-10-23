@@ -95,10 +95,10 @@ export function DatePicker({
           </Button>
         }
       />
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="space-y-1 border-b p-2">
+      <PopoverContent className="w-auto min-w-72 p-0" align="start">
+        <div className="space-y-1.5 border-b p-3">
           <Input
-            className="h-8"
+            className="h-9"
             inputMode="numeric"
             autoComplete="off"
             placeholder="YYYY-MM-DD atau DD/MM/YYYY"
@@ -131,6 +131,7 @@ export function DatePicker({
             onChange(format(date, 'yyyy-MM-dd'))
             setOpen(false)
           }}
+          className="p-3 [--cell-size:--spacing(9)]"
           locale={localeId}
           weekStartsOn={1}
           captionLayout="dropdown"
@@ -141,7 +142,7 @@ export function DatePicker({
         />
 
         {value && onClear && (
-          <div className="border-t p-2">
+          <div className="border-t p-3">
             <Button
               type="button"
               variant="ghost"
