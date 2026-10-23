@@ -87,7 +87,7 @@ export function BerandaPage() {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Hari tercatat</p>
-              <p className="font-medium">{formatDays(dashboard.data.totals.quarters)} hari</p>
+              <p className="font-medium">{dashboard.data.totals.days} hari</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Total belum dibayar</p>

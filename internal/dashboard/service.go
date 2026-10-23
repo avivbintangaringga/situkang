@@ -40,6 +40,10 @@ func (s *Service) Get(ctx context.Context) (Dashboard, error) {
 	if err != nil {
 		return Dashboard{}, err
 	}
+	days, err := recordedDays(ctx, s.db)
+	if err != nil {
+		return Dashboard{}, err
+	}
 
 	pending := make(map[int64]bool, len(attendance)+len(advances))
 	for id := range attendance {
@@ -53,6 +57,7 @@ func (s *Service) Get(ctx context.Context) (Dashboard, error) {
 		Workers:      make([]WorkerTotal, 0, len(pending)),
 		DraftRecapID: draft,
 	}
+	result.Totals.Days = days
 	for id := range pending {
 		worker := workers[id]
 		line := WorkerTotal{

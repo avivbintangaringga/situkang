@@ -162,6 +162,7 @@ export type DashboardWorker = {
 }
 
 export type DashboardTotals = {
+  days: number
   quarters: number
   gross: number
   advances: number

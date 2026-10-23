@@ -19,6 +19,7 @@ type WorkerTotal struct {
 
 // Totals aggregates every unsettled worker.
 type Totals struct {
+	Days     int   `json:"days"`
 	Quarters int   `json:"quarters"`
 	Gross    int64 `json:"gross"`
 	Advances int64 `json:"advances"`
@@ -70,6 +71,18 @@ func attendanceTotals(ctx context.Context, db *sql.DB) (map[int64]attendanceTota
 		return nil, fmt.Errorf("load unsettled attendance totals: %w", err)
 	}
 	return totals, nil
+}
+
+// recordedDays counts the distinct dates with unsettled attendance, so two
+// workers on the same day still count as one recorded day.
+func recordedDays(ctx context.Context, db *sql.DB) (int, error) {
+	var days int
+	err := db.QueryRowContext(ctx,
+		`SELECT COUNT(DISTINCT date) FROM attendances WHERE recap_id IS NULL`).Scan(&days)
+	if err != nil {
+		return 0, fmt.Errorf("count recorded days: %w", err)
+	}
+	return days, nil
 }
 
 func advanceTotals(ctx context.Context, db *sql.DB) (map[int64]int64, error) {

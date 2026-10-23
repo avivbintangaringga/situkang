@@ -135,6 +135,9 @@ func TestAggregation(t *testing.T) {
 	if line.Net != 110_000 {
 		t.Fatalf("net = %d, want 110000", line.Net)
 	}
+	if result.Totals.Days != 2 {
+		t.Fatalf("totals days = %d, want 2 distinct dates", result.Totals.Days)
+	}
 	if result.Totals.Quarters != 6 || result.Totals.Gross != 160_000 ||
 		result.Totals.Advances != 50_000 || result.Totals.Net != 110_000 {
 		t.Fatalf("totals = %+v", result.Totals)
@@ -176,5 +179,41 @@ func TestEmptyDashboard(t *testing.T) {
 	}
 	if len(result.Workers) != 0 || result.Totals.Net != 0 {
 		t.Fatalf("result = %+v, want empty", result)
+	}
+}
+
+func TestRecordedDaysCountsUniqueDates(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+
+	addWorker(t, sqlDB, 1, "Budi", 1)
+	addWorker(t, sqlDB, 2, "Andi", 1)
+
+	for _, item := range []struct {
+		id       int
+		workerID int
+		date     string
+	}{
+		{1, 1, "2026-01-05"},
+		{2, 2, "2026-01-05"},
+		{3, 1, "2026-01-06"},
+	} {
+		if _, err := sqlDB.ExecContext(ctx,
+			`INSERT INTO attendances (id, worker_id, date, quarters, daily_fee_snapshot, recap_id, created_at)
+			 VALUES (?, ?, ?, 4, 100000, NULL, ?)`,
+			item.id, item.workerID, item.date, item.date+"T00:00:00Z"); err != nil {
+			t.Fatalf("add attendance: %v", err)
+		}
+	}
+
+	result, err := svc.Get(ctx)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if result.Totals.Days != 2 {
+		t.Fatalf("days = %d, want 2 unique dates (not 3 worker-days)", result.Totals.Days)
+	}
+	if result.Totals.Quarters != 12 {
+		t.Fatalf("quarters = %d, want 12 worker-quarters", result.Totals.Quarters)
 	}
 }
