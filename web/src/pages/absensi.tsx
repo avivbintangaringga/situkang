@@ -1,11 +1,12 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { Banknote, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Banknote, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
 import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAttendanceDay, useSaveDay } from '@/hooks/use-attendance'
 import { useSettings } from '@/hooks/use-settings'
@@ -56,6 +57,9 @@ export function AbsensiPage() {
   const { mutate: saveDay, isPending: saving, error: saveError } = useSaveDay()
   const settings = useSettings()
 
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('semua')
+  const deferredSearch = useDeferredValue(search)
   const [draft, setDraft] = useState<Record<number, number>>({})
   const [dirty, setDirty] = useState(false)
   const [advanceTarget, setAdvanceTarget] = useState<{ workerId: number; name: string } | null>(
@@ -124,7 +128,20 @@ export function AbsensiPage() {
   )
 
   const workers = data?.workers ?? []
-  const rows = workers.map((worker) => {
+  const roles = [...new Set(workers.map((worker) => worker.role))].sort((a, b) =>
+    a.localeCompare(b),
+  )
+  const term = deferredSearch.trim().toLowerCase()
+  const filtered = workers.filter((worker) => {
+    const matchesRole = roleFilter === 'semua' || worker.role === roleFilter
+    const matchesTerm =
+      !term ||
+      worker.name.toLowerCase().includes(term) ||
+      worker.role.toLowerCase().includes(term)
+    return matchesRole && matchesTerm
+  })
+
+  const rows = filtered.map((worker) => {
     const quarters = draft[worker.worker_id] ?? worker.quarters
     return {
       ...worker,
@@ -204,6 +221,48 @@ export function AbsensiPage() {
         </div>
       </div>
 
+      {workers.length > 0 && (
+        <div className="space-y-2">
+          <div className="relative">
+            <Search
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              aria-hidden
+            />
+            <Input
+              className="h-9 pl-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cari nama atau peran..."
+              aria-label="Cari pekerja"
+            />
+          </div>
+
+          {roles.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {['semua', ...roles].map((role) => {
+                const active = roleFilter === role
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setRoleFilter(role)}
+                    className={cn(
+                      'h-8 rounded-full border px-3 text-xs font-medium transition-colors',
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {role === 'semua' ? 'Semua peran' : role}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {rows.length > 0 && (
         <div className="bg-muted/50 flex items-center justify-between rounded-lg px-3 py-2 text-sm">
           <span>
@@ -246,7 +305,26 @@ export function AbsensiPage() {
         </div>
       )}
 
-      {!isPending && !isError && rows.length === 0 && (
+      {!isPending && !isError && workers.length > 0 && rows.length === 0 && (
+        <div className="rounded-xl border p-8 text-center">
+          <p className="font-medium">Tidak ada pekerja yang cocok.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Coba kata kunci atau peran lain.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4 h-9 px-5"
+            onClick={() => {
+              setSearch('')
+              setRoleFilter('semua')
+            }}
+          >
+            Atur ulang
+          </Button>
+        </div>
+      )}
+
+      {!isPending && !isError && workers.length === 0 && (
         <div className="rounded-xl border p-8 text-center">
           <p className="font-medium">Belum ada pekerja aktif.</p>
           <p className="text-muted-foreground mt-1 text-sm">
