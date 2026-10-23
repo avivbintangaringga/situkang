@@ -14,11 +14,41 @@ import { formatDate, formatRupiah, todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const fractionOptions = {
-  0: { label: 'Absen', aria: 'Absen', text: 'text-xs' },
-  1: { label: '1/4', aria: 'Seperempat hari', text: 'text-sm' },
-  2: { label: '1/2', aria: 'Setengah hari', text: 'text-sm' },
-  3: { label: '3/4', aria: 'Tiga per empat hari', text: 'text-sm' },
-  4: { label: 'Hadir', aria: 'Hadir sehari penuh', text: 'text-sm' },
+  0: {
+    label: 'Absen',
+    aria: 'Absen',
+    text: 'text-xs',
+    active:
+      'border-destructive/40 bg-destructive/10 text-destructive dark:border-destructive/60 dark:bg-destructive/20',
+  },
+  1: {
+    label: '1/4',
+    aria: 'Seperempat hari',
+    text: 'text-sm',
+    active:
+      'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-100',
+  },
+  2: {
+    label: '1/2',
+    aria: 'Setengah hari',
+    text: 'text-sm',
+    active:
+      'border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-100',
+  },
+  3: {
+    label: '3/4',
+    aria: 'Tiga per empat hari',
+    text: 'text-sm',
+    active:
+      'border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-100',
+  },
+  4: {
+    label: 'Hadir',
+    aria: 'Hadir sehari penuh',
+    text: 'text-sm',
+    active:
+      'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100',
+  },
 } as const
 
 export function AbsensiPage() {
@@ -312,9 +342,7 @@ export function AbsensiPage() {
                       className={cn(
                         'h-11 rounded-lg border font-medium transition-colors disabled:opacity-50',
                         option.text,
-                        active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'hover:bg-muted',
+                        active ? option.active : 'hover:bg-muted',
                       )}
                     >
                       {option.label}
