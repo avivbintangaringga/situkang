@@ -1,0 +1,18 @@
+# Binaries and local data
+/bin/
+/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Frontend build output (embedded at build time)
+/web/dist/
+
+# Editor / OS
+.idea/
+.DS_Store

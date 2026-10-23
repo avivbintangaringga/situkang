@@ -7,7 +7,8 @@ Read this whole file before writing any code. Follow it literally. If something 
 SiTukang helps a construction supervisor record daily attendance of workers (tukang) and pay them weekly. **The core feature is the weekly pay recap (rekap gaji).** Everything else supports it.
 
 - Only admins/supervisors have accounts. Workers have NO login; they are just records (name, role, daily fee).
-- UI language: **Indonesian only**. No i18n library. Hardcode Indonesian strings.
+- UI language: **Indonesian only**. No i18n library. Hardcode Indonesian strings. This applies to user-visible UI text and to the `{"error": "..."}` messages the API returns to the UI.
+- Everything else is **English**: code identifiers, comments, log messages, CLI output and prompts, error wrapping (`fmt.Errorf`), test names and failure messages, migration comments, and commit messages. Never mix.
 - **Mobile first.** Most use is on a phone at a work site. Design for 360px width first, then scale up.
 - Single-user-ish load (a few admins, dozens of workers). Do not over-engineer.
 
@@ -240,6 +241,7 @@ Build in this order, one step at a time. Finish, test, and commit each step befo
 - Never string-concatenate SQL with user input; always use `?` placeholders.
 - Never commit `data/`, `bin/`, `web/dist/`, `node_modules/`, or `.env`.
 - Never write English text in the UI.
+- Never write Indonesian in code comments, logs, CLI output, or error wrapping; those are English.
 - Never rewrite or reformat files unrelated to the current task.
 - Never skip tests for the recap package.
 - Never run destructive commands (`rm -rf`, dropping the DB) without being asked.
