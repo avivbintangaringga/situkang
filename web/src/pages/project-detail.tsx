@@ -240,11 +240,6 @@ export function ProjectDetailPage() {
               range={{ start: data.start_date, end: data.end_date }}
               onSelectDate={setSelectedDate}
             />
-            <p className="text-muted-foreground text-xs">
-              Ketuk tanggal untuk melihat siapa yang hadir. Titik adalah tukang
-              yang ditugaskan dan hadir pada hari itu. Penyorotan menunjukkan
-              rentang tanggal proyek.
-            </p>
           </>
         )}
       </section>
