@@ -18,6 +18,7 @@ var (
 	ErrInvalidWorker   = errors.New("invalid worker")
 	ErrDuplicateWorker = errors.New("duplicate worker in day")
 	ErrInvalidRange    = errors.New("invalid date range")
+	ErrInvalidMonth    = errors.New("invalid month")
 )
 
 // Item is one worker entry in a day save.
@@ -167,6 +168,72 @@ func (s *Service) Week(ctx context.Context, workerID int64, from, to string) ([]
 	}
 
 	return week(ctx, s.db, workerID, from, to)
+}
+
+// Calendar returns recorded attendance for one month.
+func (s *Service) Calendar(ctx context.Context, month string) (Calendar, error) {
+	if !validMonth(month) {
+		return Calendar{}, ErrInvalidMonth
+	}
+
+	start, err := time.Parse("2006-01", month)
+	if err != nil {
+		return Calendar{}, ErrInvalidMonth
+	}
+	end := start.AddDate(0, 1, -1)
+
+	rows, err := calendarRows(ctx, s.db, clock.FormatDate(start), clock.FormatDate(end))
+	if err != nil {
+		return Calendar{}, err
+	}
+	projects, err := workerProjects(ctx, s.db, clock.FormatDate(start), clock.FormatDate(end))
+	if err != nil {
+		return Calendar{}, err
+	}
+
+	result := Calendar{Month: month, Days: make([]CalendarDay, 0)}
+	for _, row := range rows {
+		worker := CalendarWorker{
+			WorkerID: row.WorkerID,
+			Name:     row.Name,
+			Quarters: row.Quarters,
+			Earned:   earned(row.Snapshot, row.Quarters),
+			Projects: projects[row.WorkerID],
+		}
+		if worker.Projects == nil {
+			worker.Projects = []CalendarProject{}
+		}
+
+		if len(result.Days) == 0 || result.Days[len(result.Days)-1].Date != row.Date {
+			result.Days = append(result.Days, CalendarDay{
+				Date:    row.Date,
+				Workers: make([]CalendarWorker, 0),
+			})
+		}
+		last := &result.Days[len(result.Days)-1]
+		last.Workers = append(last.Workers, worker)
+
+		result.Totals.Workers++
+		result.Totals.Earned += worker.Earned
+	}
+	result.Totals.Days = len(result.Days)
+	return result, nil
+}
+
+func validMonth(value string) bool {
+	if len(value) != 7 || value[4] != '-' {
+		return false
+	}
+	for i, c := range value {
+		if i == 4 {
+			continue
+		}
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	month := (int(value[5]-'0') * 10) + int(value[6]-'0')
+	return month >= 1 && month <= 12
 }
 
 // Today returns the current Jakarta date as YYYY-MM-DD.

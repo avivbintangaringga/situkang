@@ -35,6 +35,109 @@ type record struct {
 	RecapID  *int64
 }
 
+// CalendarProject is a project assignment shown on the calendar.
+type CalendarProject struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+// CalendarWorker is one recorded worker on a calendar date.
+type CalendarWorker struct {
+	WorkerID int64             `json:"worker_id"`
+	Name     string            `json:"name"`
+	Quarters int               `json:"quarters"`
+	Earned   int64             `json:"earned"`
+	Projects []CalendarProject `json:"projects"`
+}
+
+// CalendarDay is one date that has at least one attendance record.
+type CalendarDay struct {
+	Date    string           `json:"date"`
+	Workers []CalendarWorker `json:"workers"`
+}
+
+// CalendarTotals summarises a month.
+type CalendarTotals struct {
+	Days    int   `json:"days"`
+	Workers int   `json:"workers"`
+	Earned  int64 `json:"earned"`
+}
+
+// Calendar is the read-only attendance month payload.
+type Calendar struct {
+	Month  string         `json:"month"`
+	Days   []CalendarDay  `json:"days"`
+	Totals CalendarTotals `json:"totals"`
+}
+
+type calendarRow struct {
+	Date     string
+	WorkerID int64
+	Name     string
+	Quarters int
+	Snapshot int64
+}
+
+func calendarRows(ctx context.Context, db *sql.DB, from, to string) ([]calendarRow, error) {
+	const query = `
+		SELECT a.date, w.id, w.name, a.quarters, a.daily_fee_snapshot
+		FROM attendances a
+		JOIN workers w ON w.id = a.worker_id
+		WHERE a.date BETWEEN ? AND ?
+		ORDER BY a.date, w.name COLLATE NOCASE`
+
+	rows, err := db.QueryContext(ctx, query, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("load attendance calendar: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]calendarRow, 0)
+	for rows.Next() {
+		var row calendarRow
+		if err := rows.Scan(&row.Date, &row.WorkerID, &row.Name, &row.Quarters, &row.Snapshot); err != nil {
+			return nil, fmt.Errorf("scan attendance calendar: %w", err)
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load attendance calendar: %w", err)
+	}
+	return result, nil
+}
+
+func workerProjects(ctx context.Context, db *sql.DB, from, to string) (map[int64][]CalendarProject, error) {
+	const query = `
+		SELECT DISTINCT pw.worker_id, p.id, p.name
+		FROM project_workers pw
+		JOIN projects p ON p.id = pw.project_id
+		JOIN attendances a ON a.worker_id = pw.worker_id
+		WHERE a.date BETWEEN ? AND ?
+		ORDER BY pw.worker_id, p.name COLLATE NOCASE`
+
+	rows, err := db.QueryContext(ctx, query, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("load calendar projects: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int64][]CalendarProject)
+	for rows.Next() {
+		var (
+			workerID int64
+			project  CalendarProject
+		)
+		if err := rows.Scan(&workerID, &project.ID, &project.Name); err != nil {
+			return nil, fmt.Errorf("scan calendar project: %w", err)
+		}
+		result[workerID] = append(result[workerID], project)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load calendar projects: %w", err)
+	}
+	return result, nil
+}
+
 func day(ctx context.Context, db *sql.DB, date string) ([]DayRow, error) {
 	const query = `
 		SELECT w.id, w.name, w.role, w.daily_fee,

@@ -79,6 +79,16 @@ func (h *Handler) Week(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, entries)
 }
 
+// Calendar returns recorded attendance for one month.
+func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
+	result, err := h.svc.Calendar(r.Context(), r.URL.Query().Get("month"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, result)
+}
+
 func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrLocked):
@@ -86,6 +96,8 @@ func writeError(w http.ResponseWriter, err error) {
 			"Data sudah masuk rekap dan terkunci. Buka kembali rekap untuk mengubahnya.")
 	case errors.Is(err, ErrInvalidDate), errors.Is(err, ErrInvalidRange):
 		httpx.Error(w, http.StatusBadRequest, "Tanggal tidak valid.")
+	case errors.Is(err, ErrInvalidMonth):
+		httpx.Error(w, http.StatusBadRequest, "Bulan tidak valid.")
 	case errors.Is(err, ErrInvalidQuarters):
 		httpx.Error(w, http.StatusBadRequest, "Bagian hari harus antara 1 dan 4.")
 	case errors.Is(err, ErrInvalidWorker):

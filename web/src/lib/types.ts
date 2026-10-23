@@ -89,6 +89,36 @@ export type AttendanceWeekEntry = {
   locked: boolean
 }
 
+export type AttendanceCalendarProject = {
+  id: number
+  name: string
+}
+
+export type AttendanceCalendarWorker = {
+  worker_id: number
+  name: string
+  quarters: number
+  earned: number
+  projects: AttendanceCalendarProject[]
+}
+
+export type AttendanceCalendarDay = {
+  date: string
+  workers: AttendanceCalendarWorker[]
+}
+
+export type AttendanceCalendarTotals = {
+  days: number
+  workers: number
+  earned: number
+}
+
+export type AttendanceCalendar = {
+  month: string
+  days: AttendanceCalendarDay[]
+  totals: AttendanceCalendarTotals
+}
+
 export type CashAdvance = {
   id: number
   worker_id: number

@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
-import type { AttendanceDay, AttendanceWeekEntry } from '@/lib/types'
+import type {
+  AttendanceCalendar,
+  AttendanceDay,
+  AttendanceWeekEntry,
+} from '@/lib/types'
 
 export type DayItem = {
   worker_id: number
@@ -48,5 +52,13 @@ export function useWorkerWeek(workerId: number, from: string, to: string) {
         `/attendances?worker_id=${workerId}&from=${from}&to=${to}`,
       ),
     enabled: workerId > 0,
+  })
+}
+
+export function useAttendanceCalendar(month: string) {
+  return useQuery({
+    queryKey: ['attendance', 'calendar', month],
+    queryFn: () => api.get<AttendanceCalendar>(`/attendances/calendar?month=${month}`),
+    staleTime: 30 * 1000,
   })
 }

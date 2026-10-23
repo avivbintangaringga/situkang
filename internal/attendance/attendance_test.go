@@ -3,6 +3,7 @@ package attendance
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -42,6 +43,17 @@ CREATE TABLE attendances (
     recap_id           INTEGER REFERENCES recaps(id),
     created_at         TEXT NOT NULL,
     UNIQUE (worker_id, date)
+) STRICT;
+
+CREATE TABLE projects (
+    id    INTEGER PRIMARY KEY,
+    name  TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE project_workers (
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    worker_id  INTEGER NOT NULL REFERENCES workers(id),
+    PRIMARY KEY (project_id, worker_id)
 ) STRICT;
 `
 
@@ -305,5 +317,130 @@ func TestHandlerLockedMessage(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Data sudah masuk rekap dan terkunci") {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func addProject(t *testing.T, sqlDB *sql.DB, id int64, name string, workerIDs ...int64) {
+	t.Helper()
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO projects (id, name) VALUES (?, ?)`, id, name); err != nil {
+		t.Fatalf("add project: %v", err)
+	}
+	for _, workerID := range workerIDs {
+		if _, err := sqlDB.ExecContext(context.Background(),
+			`INSERT INTO project_workers (project_id, worker_id) VALUES (?, ?)`, id, workerID); err != nil {
+			t.Fatalf("assign project %d to worker %d: %v", id, workerID, err)
+		}
+	}
+}
+
+func TestCalendar(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi", 100_000)
+	addWorker(t, sqlDB, 2, "Andi", 120_000)
+	addWorker(t, sqlDB, 3, "Citra", 80_000)
+
+	addProject(t, sqlDB, 1, "Renovasi", 1, 2)
+	addProject(t, sqlDB, 2, "Gudang", 1)
+
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4},
+		{WorkerID: 2, Quarters: 2},
+	}); err != nil {
+		t.Fatalf("SaveDay 2026-01-05: %v", err)
+	}
+	if _, err := svc.SaveDay(ctx, "2026-01-06", []Item{{WorkerID: 3, Quarters: 3}}); err != nil {
+		t.Fatalf("SaveDay 2026-01-06: %v", err)
+	}
+
+	h := NewHandler(svc)
+	router := chi.NewRouter()
+	router.Get("/attendances/calendar", h.Calendar)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/attendances/calendar?month=2026-01", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	var result Calendar
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode calendar: %v", err)
+	}
+
+	if result.Month != "2026-01" {
+		t.Fatalf("month = %q, want 2026-01", result.Month)
+	}
+	if result.Totals.Days != 2 {
+		t.Fatalf("days = %d, want 2", result.Totals.Days)
+	}
+	if result.Totals.Workers != 3 {
+		t.Fatalf("workers = %d, want 3", result.Totals.Workers)
+	}
+	if result.Totals.Earned != 220_000 {
+		t.Fatalf("earned = %d, want 220000", result.Totals.Earned)
+	}
+	if len(result.Days) != 2 || result.Days[0].Date != "2026-01-05" || result.Days[1].Date != "2026-01-06" {
+		t.Fatalf("days = %+v", result.Days)
+	}
+
+	first := result.Days[0]
+	if len(first.Workers) != 2 {
+		t.Fatalf("workers on 2026-01-05 = %d, want 2", len(first.Workers))
+	}
+	for _, worker := range first.Workers {
+		switch worker.WorkerID {
+		case 1:
+			if worker.Earned != 100_000 {
+				t.Fatalf("budi earned = %d, want 100000", worker.Earned)
+			}
+			if len(worker.Projects) != 2 ||
+				worker.Projects[0].Name != "Gudang" ||
+				worker.Projects[1].Name != "Renovasi" {
+				t.Fatalf("budi projects = %+v, want Gudang then Renovasi", worker.Projects)
+			}
+		case 2:
+			if worker.Earned != 60_000 {
+				t.Fatalf("andi earned = %d, want 60000", worker.Earned)
+			}
+			if len(worker.Projects) != 1 || worker.Projects[0].Name != "Renovasi" {
+				t.Fatalf("andi projects = %+v, want Renovasi", worker.Projects)
+			}
+		default:
+			t.Fatalf("unexpected worker on 2026-01-05: %+v", worker)
+		}
+	}
+
+	second := result.Days[1]
+	if len(second.Workers) != 1 || second.Workers[0].WorkerID != 3 {
+		t.Fatalf("workers on 2026-01-06 = %+v", second.Workers)
+	}
+	if second.Workers[0].Earned != 60_000 {
+		t.Fatalf("citra earned = %d, want 60000", second.Workers[0].Earned)
+	}
+	if second.Workers[0].Projects == nil || len(second.Workers[0].Projects) != 0 {
+		t.Fatalf("citra projects = %+v, want empty list", second.Workers[0].Projects)
+	}
+}
+
+func TestCalendarRejectsInvalidMonth(t *testing.T) {
+	svc, _ := testService(t)
+	h := NewHandler(svc)
+	router := chi.NewRouter()
+	router.Get("/attendances/calendar", h.Calendar)
+
+	for _, month := range []string{"", "2026-1", "2026-13", "2026-00", "januari"} {
+		t.Run(month, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/attendances/calendar?month="+month, nil))
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400: %s", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), "Bulan tidak valid") {
+				t.Fatalf("body = %s", rec.Body.String())
+			}
+		})
 	}
 }

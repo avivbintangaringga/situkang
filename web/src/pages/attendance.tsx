@@ -1,5 +1,5 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { Banknote, Check, ChevronDown, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
+import { Banknote, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -167,11 +167,21 @@ export function AttendancePage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Absensi</h1>
-        <p className="text-muted-foreground text-sm">
-          Ketuk bagian hari untuk setiap tukang. Perubahan tersimpan otomatis.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight">Absensi</h1>
+          <p className="text-muted-foreground text-sm">
+            Ketuk bagian hari untuk setiap tukang. Perubahan tersimpan otomatis.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="size-9 shrink-0 rounded-full p-0"
+          aria-label="Kalender absensi"
+          render={<Link to="/attendance/calendar" />}
+        >
+          <CalendarDays className="size-4" aria-hidden />
+        </Button>
       </div>
 
       <div className="space-y-2">

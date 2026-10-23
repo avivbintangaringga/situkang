@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/components/app-shell'
 import { RequireAuth } from '@/components/require-auth'
 import { AttendancePage } from '@/pages/attendance'
+import { AttendanceCalendarPage } from '@/pages/attendance-calendar'
 import { SharePage } from '@/pages/share'
 import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login'
@@ -24,6 +25,7 @@ function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/attendance/calendar" element={<AttendanceCalendarPage />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/workers/:id" element={<WorkerDetailPage />} />
           <Route path="/projects" element={<ProjectsPage />} />

@@ -172,6 +172,7 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Delete("/workers/{id}", workerHandler.Delete)
 
 			protected.Get("/attendances", attendanceHandler.Week)
+			protected.Get("/attendances/calendar", attendanceHandler.Calendar)
 			protected.Get("/attendances/day", attendanceHandler.Day)
 			protected.Put("/attendances/day/{date}", attendanceHandler.SaveDay)
 
