@@ -95,7 +95,11 @@ export function DatePicker({
           </Button>
         }
       />
-      <PopoverContent className="w-[19rem] max-w-[calc(100vw-2rem)] p-0" align="start">
+      <PopoverContent
+        style={{ width: '17.25rem' }}
+        className="max-w-[calc(100vw-2rem)] p-0"
+        align="start"
+      >
         <Calendar
           mode="single"
           selected={selected}
