@@ -12,6 +12,38 @@ export type Worker = {
   created_at: string
 }
 
+export type ProjectStatus = 'aktif' | 'selesai' | 'ditunda'
+
+export type Project = {
+  id: number
+  name: string
+  start_date: string | null
+  end_date: string | null
+  status: ProjectStatus
+  notes: string
+  created_at: string
+}
+
+export type ProjectRef = {
+  id: number
+  name: string
+}
+
+export type TimelineProject = {
+  id: number
+  name: string
+  status: ProjectStatus
+  start_date: string | null
+  end_date: string | null
+  tagged_days: string[]
+}
+
+export type ProjectTimeline = {
+  month: string
+  days: number
+  projects: TimelineProject[]
+}
+
 export type AttendanceDayRow = {
   worker_id: number
   name: string
@@ -21,6 +53,7 @@ export type AttendanceDayRow = {
   snapshot: number
   earned: number
   locked: boolean
+  projects: ProjectRef[]
 }
 
 export type AttendanceDay = {
@@ -36,6 +69,7 @@ export type AttendanceWeekEntry = {
   quarters: number
   earned: number
   locked: boolean
+  projects: ProjectRef[]
 }
 
 export type CashAdvance = {

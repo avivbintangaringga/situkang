@@ -113,6 +113,11 @@ export function WorkerDetailPage() {
                             </>
                           )}
                         </p>
+                        {entry && entry.projects.length > 0 && (
+                          <p className="text-muted-foreground truncate text-xs">
+                            {entry.projects.map((project) => project.name).join(' · ')}
+                          </p>
+                        )}
                       </div>
                       <span className="shrink-0 text-sm font-medium">
                         {entry ? formatRupiah(entry.earned) : '—'}

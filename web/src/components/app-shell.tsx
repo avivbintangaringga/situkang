@@ -1,4 +1,4 @@
-import { ClipboardCheck, Home, Receipt, Users } from 'lucide-react'
+import { Building2, ClipboardCheck, Home, Receipt, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 
@@ -13,11 +13,12 @@ type NavItem = {
   end?: boolean
 }
 
-// Absensi, Rekap, and Proyek join the nav as their steps land.
+// Absensi, Rekap, Proyek, and Pekerja make up the five-item navigation.
 const navItems: NavItem[] = [
   { to: '/', label: 'Beranda', icon: Home, end: true },
   { to: '/absensi', label: 'Absensi', icon: ClipboardCheck },
   { to: '/rekap', label: 'Rekap', icon: Receipt },
+  { to: '/proyek', label: 'Proyek', icon: Building2 },
   { to: '/pekerja', label: 'Pekerja', icon: Users },
 ]
 

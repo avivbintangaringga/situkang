@@ -1,12 +1,14 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, Lock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
+import { AttendanceProjectSheet } from '@/components/attendance-project-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAttendanceDay, useSaveDay } from '@/hooks/use-attendance'
+import { useProjects } from '@/hooks/use-projects'
 import { formatDate, formatRupiah, todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -22,9 +24,14 @@ export function AbsensiPage() {
   const [date, setDate] = useState<string | null>(null)
   const { data, isPending, isError, error, refetch } = useAttendanceDay(date)
   const { mutate: saveDay, isPending: saving, error: saveError } = useSaveDay()
+  const projects = useProjects()
 
   const [draft, setDraft] = useState<Record<number, number>>({})
+  const [projectDraft, setProjectDraft] = useState<Record<number, number[]>>({})
   const [dirty, setDirty] = useState(false)
+  const [projectTarget, setProjectTarget] = useState<{ workerId: number; name: string } | null>(
+    null,
+  )
 
   const currentDate = data?.date ?? date ?? ''
 
@@ -34,6 +41,15 @@ export function AbsensiPage() {
     setDraft(
       Object.fromEntries(data.workers.map((worker) => [worker.worker_id, worker.quarters])),
     )
+    // oxlint-disable-next-line react/set-state-in-effect -- sync the editable tags with server data
+    setProjectDraft(
+      Object.fromEntries(
+        data.workers.map((worker) => [
+          worker.worker_id,
+          worker.projects.map((project) => project.id),
+        ]),
+      ),
+    )
   }, [data, dirty])
 
   useEffect(() => {
@@ -42,7 +58,11 @@ export function AbsensiPage() {
     const timer = setTimeout(() => {
       const items = Object.entries(draft)
         .filter(([, quarters]) => quarters > 0)
-        .map(([id, quarters]) => ({ worker_id: Number(id), quarters }))
+        .map(([id, quarters]) => ({
+          worker_id: Number(id),
+          quarters,
+          project_ids: projectDraft[Number(id)] ?? [],
+        }))
 
       saveDay(
         { date: currentDate, items },
@@ -51,10 +71,15 @@ export function AbsensiPage() {
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [draft, dirty, currentDate, saveDay])
+  }, [draft, projectDraft, dirty, currentDate, saveDay])
 
   function setQuarters(workerId: number, quarters: number) {
     setDraft((previous) => ({ ...previous, [workerId]: quarters }))
+    setDirty(true)
+  }
+
+  function saveProjects(workerId: number, projectIds: number[]) {
+    setProjectDraft((previous) => ({ ...previous, [workerId]: projectIds }))
     setDirty(true)
   }
 
@@ -65,11 +90,16 @@ export function AbsensiPage() {
   }
 
   const workers = data?.workers ?? []
+  const projectList = projects.data ?? []
   const rows = workers.map((worker) => {
     const quarters = draft[worker.worker_id] ?? worker.quarters
+    const projectIds =
+      projectDraft[worker.worker_id] ?? worker.projects.map((project) => project.id)
     return {
       ...worker,
       quarters,
+      projectIds,
+      tags: projectList.filter((project) => projectIds.includes(project.id)),
       preview: Math.floor((worker.snapshot * quarters) / 4),
     }
   })
@@ -243,10 +273,46 @@ export function AbsensiPage() {
                   )
                 })}
               </div>
+
+              {row.quarters > 0 && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground truncate text-xs">
+                    {row.tags.length > 0
+                      ? row.tags.map((project) => project.name).join(' · ')
+                      : 'Belum ada proyek'}
+                  </span>
+                  <Button
+                    variant="outline"
+                    className="h-11 shrink-0 px-3 text-xs"
+                    onClick={() => {
+                      setProjectTarget({ workerId: row.worker_id, name: row.name })
+                    }}
+                    disabled={row.locked || projects.isPending}
+                  >
+                    <Tag className="size-4" aria-hidden />
+                    Proyek
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      <AttendanceProjectSheet
+        open={Boolean(projectTarget)}
+        onOpenChange={(open) => {
+          if (!open) setProjectTarget(null)
+        }}
+        workerName={projectTarget?.name ?? ''}
+        projects={projectList}
+        selected={
+          projectTarget ? (projectDraft[projectTarget.workerId] ?? []) : []
+        }
+        onSave={(projectIds) => {
+          if (projectTarget) saveProjects(projectTarget.workerId, projectIds)
+        }}
+      />
 
       <p className="text-muted-foreground text-xs">
         — absen · ¼ seperempat · ½ setengah · ¾ tiga per empat · 1 penuh

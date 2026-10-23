@@ -90,6 +90,8 @@ func writeError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusBadRequest, "Bagian hari harus antara 1 dan 4.")
 	case errors.Is(err, ErrInvalidWorker):
 		httpx.Error(w, http.StatusBadRequest, "Pekerja tidak ditemukan atau sudah nonaktif.")
+	case errors.Is(err, ErrInvalidProject):
+		httpx.Error(w, http.StatusBadRequest, "Proyek tidak ditemukan.")
 	case errors.Is(err, ErrDuplicateWorker):
 		httpx.Error(w, http.StatusBadRequest, "Pekerja muncul lebih dari sekali.")
 	default:

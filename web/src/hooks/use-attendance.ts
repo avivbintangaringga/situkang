@@ -6,6 +6,7 @@ import type { AttendanceDay, AttendanceWeekEntry } from '@/lib/types'
 export type DayItem = {
   worker_id: number
   quarters: number
+  project_ids: number[]
 }
 
 export function attendanceDayQueryKey(date: string | null) {

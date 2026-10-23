@@ -43,6 +43,22 @@ CREATE TABLE attendances (
     created_at         TEXT NOT NULL,
     UNIQUE (worker_id, date)
 ) STRICT;
+
+CREATE TABLE projects (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT NOT NULL,
+    start_date TEXT,
+    end_date   TEXT,
+    status     TEXT NOT NULL,
+    notes      TEXT,
+    created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE attendance_projects (
+    attendance_id INTEGER NOT NULL REFERENCES attendances(id) ON DELETE CASCADE,
+    project_id    INTEGER NOT NULL REFERENCES projects(id),
+    PRIMARY KEY (attendance_id, project_id)
+) STRICT;
 `
 
 var testDay = time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC) // Monday
@@ -70,6 +86,16 @@ func addWorker(t *testing.T, sqlDB *sql.DB, id int64, name string, fee int64) {
 		id, name, fee)
 	if err != nil {
 		t.Fatalf("add worker: %v", err)
+	}
+}
+
+func addProject(t *testing.T, sqlDB *sql.DB, id int64, name string) {
+	t.Helper()
+	_, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO projects (id, name, status, created_at) VALUES (?, ?, 'aktif', '2026-01-01T00:00:00Z')`,
+		id, name)
+	if err != nil {
+		t.Fatalf("add project: %v", err)
 	}
 }
 
@@ -242,6 +268,105 @@ func TestSaveDayValidation(t *testing.T) {
 	}
 	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{{WorkerID: 1, Quarters: 4}}); err != ErrInvalidWorker {
 		t.Fatalf("inactive worker error = %v, want ErrInvalidWorker", err)
+	}
+}
+
+func TestProjectTagging(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi", 100_000)
+	addWorker(t, sqlDB, 2, "Andi", 100_000)
+	addProject(t, sqlDB, 10, "Rumah Budi")
+	addProject(t, sqlDB, 11, "Gudang")
+
+	result, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{11, 10, 10}},
+		{WorkerID: 2, Quarters: 4},
+	})
+	if err != nil {
+		t.Fatalf("SaveDay: %v", err)
+	}
+	byID := map[int64]DayRow{}
+	for _, row := range result.Workers {
+		byID[row.WorkerID] = row
+	}
+	if len(byID[1].Projects) != 2 {
+		t.Fatalf("budi projects = %+v, want two unique tags", byID[1].Projects)
+	}
+	if len(byID[2].Projects) != 0 || byID[2].Projects == nil {
+		t.Fatalf("andi projects = %+v, want empty list", byID[2].Projects)
+	}
+
+	// Replacing tags removes the old ones.
+	result, err = svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{10}},
+		{WorkerID: 2, Quarters: 4},
+	})
+	if err != nil {
+		t.Fatalf("SaveDay replace: %v", err)
+	}
+	for _, row := range result.Workers {
+		if row.WorkerID == 1 && (len(row.Projects) != 1 || row.Projects[0].ID != 10) {
+			t.Fatalf("budi projects after replace = %+v", row.Projects)
+		}
+	}
+
+	week, err := svc.Week(ctx, 1, "2026-01-05", "2026-01-11")
+	if err != nil {
+		t.Fatalf("Week: %v", err)
+	}
+	if len(week) != 1 || len(week[0].Projects) != 1 || week[0].Projects[0].Name != "Rumah Budi" {
+		t.Fatalf("week = %+v, want the project name", week)
+	}
+}
+
+func TestProjectValidation(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi", 100_000)
+
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{99}},
+	}); err != ErrInvalidProject {
+		t.Fatalf("unknown project error = %v, want ErrInvalidProject", err)
+	}
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{0}},
+	}); err != ErrInvalidProject {
+		t.Fatalf("zero project error = %v, want ErrInvalidProject", err)
+	}
+}
+
+func TestLockedAttendanceRejectsTagChanges(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi", 100_000)
+	addProject(t, sqlDB, 10, "Rumah")
+
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{10}},
+	}); err != nil {
+		t.Fatalf("SaveDay: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO recaps (id, mode, status, created_at) VALUES (1, 'all_unsettled', 'final', '2026-01-05T00:00:00Z')`); err != nil {
+		t.Fatalf("insert recap: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx, `UPDATE attendances SET recap_id = 1`); err != nil {
+		t.Fatalf("lock attendance: %v", err)
+	}
+
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4},
+	}); err != ErrLocked {
+		t.Fatalf("removing a tag on locked attendance error = %v, want ErrLocked", err)
+	}
+
+	// Sending the same quarters and tags is not a change.
+	if _, err := svc.SaveDay(ctx, "2026-01-05", []Item{
+		{WorkerID: 1, Quarters: 4, ProjectIDs: []int64{10}},
+	}); err != nil {
+		t.Fatalf("unchanged locked tags error = %v", err)
 	}
 }
 
