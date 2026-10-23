@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Copy, FileSpreadsheet, Plus, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -23,6 +23,7 @@ import {
   useReopenRecap,
   useSetRecapPaid,
 } from '@/hooks/use-recaps'
+import { api } from '@/lib/api'
 import { formatDate, formatDays, formatRupiah } from '@/lib/format'
 import type { RecapExtraFee } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,31 @@ export function RekapDetailPage() {
   const [feeTarget, setFeeTarget] = useState<{ workerId: number; fee?: RecapExtraFee } | null>(
     null,
   )
+  const [shareNote, setShareNote] = useState<string | null>(null)
+
+  async function whatsappText(workerId?: number) {
+    const suffix = workerId ? `?worker_id=${workerId}` : ''
+    return api.text(`/recaps/${recapId}/whatsapp${suffix}`)
+  }
+
+  async function copyText(workerId?: number) {
+    try {
+      const text = await whatsappText(workerId)
+      await navigator.clipboard.writeText(text)
+      setShareNote('Tersalin ke papan klip.')
+    } catch {
+      setShareNote('Gagal menyalin. Coba lagi.')
+    }
+  }
+
+  async function sendWhatsApp(workerId?: number) {
+    try {
+      const text = await whatsappText(workerId)
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+    } catch {
+      setShareNote('Gagal membuka WhatsApp. Coba lagi.')
+    }
+  }
 
   const isDraft = data?.recap.status === 'draft'
   const actionError = finalize.error ?? reopen.error ?? remove.error ?? setPaid.error
@@ -115,6 +141,39 @@ export function RekapDetailPage() {
           <p className="font-semibold">{formatRupiah(totals.net)}</p>
         </div>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          className="h-11 flex-1"
+          render={<a href={`/api/recaps/${recapId}/export.xlsx`} />}
+        >
+          <FileSpreadsheet className="size-4" aria-hidden />
+          Excel
+        </Button>
+        <Button
+          variant="outline"
+          className="h-11 flex-1"
+          onClick={() => void copyText()}
+        >
+          <Copy className="size-4" aria-hidden />
+          Salin semua
+        </Button>
+        <Button
+          variant="outline"
+          className="h-11 flex-1"
+          onClick={() => void sendWhatsApp()}
+        >
+          <Send className="size-4" aria-hidden />
+          Kirim WA
+        </Button>
+      </div>
+
+      {shareNote && (
+        <p className="text-muted-foreground text-xs" role="status">
+          {shareNote}
+        </p>
+      )}
 
       {actionError && (
         <p className="text-destructive text-sm" role="alert">
@@ -216,31 +275,50 @@ export function RekapDetailPage() {
               </ul>
             )}
 
-            <div className="flex items-center justify-between gap-3 border-t pt-3">
+            <div className="flex items-center justify-between gap-2 border-t pt-3">
               {isDraft ? (
-                <>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Switch
-                      checked={line.paid}
-                      onCheckedChange={(paid) =>
-                        setPaid.mutate({ workerId: line.worker_id, paid })
-                      }
-                      aria-label={`Dibayar ${line.name}`}
-                    />
-                    {line.paid ? 'Dibayar' : 'Belum dibayar'}
-                  </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch
+                    checked={line.paid}
+                    onCheckedChange={(paid) =>
+                      setPaid.mutate({ workerId: line.worker_id, paid })
+                    }
+                    aria-label={`Dibayar ${line.name}`}
+                  />
+                  {line.paid ? 'Dibayar' : 'Belum dibayar'}
+                </label>
+              ) : (
+                <span className="text-muted-foreground text-sm">Sudah dibayar</span>
+              )}
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  className="size-11 p-0"
+                  aria-label={`Salin WhatsApp ${line.name}`}
+                  onClick={() => void copyText(line.worker_id)}
+                >
+                  <Copy className="size-4" aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="size-11 p-0"
+                  aria-label={`Kirim WhatsApp ${line.name}`}
+                  onClick={() => void sendWhatsApp(line.worker_id)}
+                >
+                  <Send className="size-4" aria-hidden />
+                </Button>
+                {isDraft && (
                   <Button
                     variant="outline"
-                    className="h-9 px-3 text-xs"
+                    className="h-11 px-3 text-xs"
                     onClick={() => setFeeTarget({ workerId: line.worker_id })}
                   >
                     <Plus className="size-3.5" aria-hidden />
                     Tambahan
                   </Button>
-                </>
-              ) : (
-                <span className="text-muted-foreground text-sm">Sudah dibayar</span>
-              )}
+                )}
+              </div>
             </div>
           </li>
         ))}

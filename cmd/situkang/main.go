@@ -173,6 +173,8 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Post("/recaps/{id}/extra-fees", recapHandler.AddFee)
 			protected.Patch("/recaps/{id}/extra-fees/{feeId}", recapHandler.UpdateFee)
 			protected.Delete("/recaps/{id}/extra-fees/{feeId}", recapHandler.DeleteFee)
+			protected.Get("/recaps/{id}/export.xlsx", recapHandler.ExportExcel)
+			protected.Get("/recaps/{id}/whatsapp", recapHandler.WhatsApp)
 		})
 	})
 

@@ -2,6 +2,7 @@ package recap
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -211,6 +212,68 @@ func (h *Handler) DeleteFee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ExportExcel streams the recap workbook.
+func (h *Handler) ExportExcel(w http.ResponseWriter, r *http.Request) {
+	id, ok := recapID(w, r)
+	if !ok {
+		return
+	}
+
+	detail, err := h.svc.Detail(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	buffer, err := Excel(detail)
+	if err != nil {
+		slog.Error("build excel failed", "error", err)
+		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"rekap-%d.xlsx\"", id))
+	_, _ = w.Write(buffer.Bytes())
+}
+
+// WhatsApp returns the plain text recap message.
+func (h *Handler) WhatsApp(w http.ResponseWriter, r *http.Request) {
+	id, ok := recapID(w, r)
+	if !ok {
+		return
+	}
+
+	detail, err := h.svc.Detail(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	text := AllWhatsAppText(detail)
+	if raw := r.URL.Query().Get("worker_id"); raw != "" {
+		workerID, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || workerID <= 0 {
+			httpx.Error(w, http.StatusBadRequest, "Pekerja tidak ditemukan.")
+			return
+		}
+		text = ""
+		for _, line := range detail.Workers {
+			if line.WorkerID == workerID {
+				text = WhatsAppText(line)
+				break
+			}
+		}
+		if text == "" {
+			httpx.Error(w, http.StatusNotFound, "Pekerja tidak ada pada rekap ini.")
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(text))
 }
 
 func recapID(w http.ResponseWriter, r *http.Request) (int64, bool) {

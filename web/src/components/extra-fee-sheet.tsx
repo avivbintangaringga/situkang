@@ -40,6 +40,7 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
 
   useEffect(() => {
     if (!open) return
+    // oxlint-disable-next-line react/set-state-in-effect -- reset the form when the sheet opens
     if (fee) {
       setKind(fee.amount < 0 ? 'potongan' : 'bonus')
       setAmount(String(Math.abs(fee.amount)))

@@ -46,7 +46,17 @@ function errorMessage(payload: unknown): string {
   return 'Terjadi kesalahan. Coba lagi.'
 }
 
+async function text(path: string): Promise<string> {
+  const response = await fetch(`/api${path}`, { credentials: 'same-origin' })
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null)
+    throw new ApiError(response.status, errorMessage(payload))
+  }
+  return response.text()
+}
+
 export const api = {
+  text,
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, body),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
