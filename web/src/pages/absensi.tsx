@@ -18,7 +18,7 @@ const fractionOptions = {
   1: { label: '1/4', aria: 'Seperempat hari', text: 'text-sm' },
   2: { label: '1/2', aria: 'Setengah hari', text: 'text-sm' },
   3: { label: '3/4', aria: 'Tiga per empat hari', text: 'text-sm' },
-  4: { label: '1', aria: 'Sehari penuh', text: 'text-sm' },
+  4: { label: 'Hadir', aria: 'Hadir sehari penuh', text: 'text-sm' },
 } as const
 
 export function AbsensiPage() {
