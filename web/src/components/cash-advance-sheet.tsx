@@ -46,11 +46,12 @@ type Props = {
   onOpenChange: (open: boolean) => void
   workerId: number
   advance?: CashAdvance | null
+  defaultDate?: string
 }
 
-function valuesFor(advance?: CashAdvance | null): Form {
+function valuesFor(advance?: CashAdvance | null, defaultDate?: string): Form {
   if (!advance) {
-    return { date: todayISO(), amount: '', note: '' }
+    return { date: defaultDate ?? todayISO(), amount: '', note: '' }
   }
   return {
     date: advance.date,
@@ -59,7 +60,13 @@ function valuesFor(advance?: CashAdvance | null): Form {
   }
 }
 
-export function CashAdvanceSheet({ open, onOpenChange, workerId, advance }: Props) {
+export function CashAdvanceSheet({
+  open,
+  onOpenChange,
+  workerId,
+  advance,
+  defaultDate,
+}: Props) {
   const create = useCreateCashAdvance(workerId)
   const update = useUpdateCashAdvance(advance?.id ?? 0, workerId)
   const remove = useDeleteCashAdvance(workerId)
@@ -67,14 +74,14 @@ export function CashAdvanceSheet({ open, onOpenChange, workerId, advance }: Prop
 
   const form = useForm<Form>({
     resolver: zodResolver(schema),
-    defaultValues: valuesFor(advance),
+    defaultValues: valuesFor(advance, defaultDate),
   })
 
   useEffect(() => {
     if (!open) return
-    form.reset(valuesFor(advance))
+    form.reset(valuesFor(advance, defaultDate))
     setConfirmDelete(false)
-  }, [open, advance, form])
+  }, [open, advance, defaultDate, form])
 
   const pending = create.isPending || update.isPending
   const mutationError = create.error ?? update.error

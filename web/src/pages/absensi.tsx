@@ -1,9 +1,10 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, Lock, Tag } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, Lock, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import { AttendanceProjectSheet } from '@/components/attendance-project-sheet'
+import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -62,6 +63,9 @@ export function AbsensiPage() {
   const [projectDraft, setProjectDraft] = useState<Record<number, number[]>>({})
   const [dirty, setDirty] = useState(false)
   const [projectTarget, setProjectTarget] = useState<{ workerId: number; name: string } | null>(
+    null,
+  )
+  const [advanceTarget, setAdvanceTarget] = useState<{ workerId: number; name: string } | null>(
     null,
   )
 
@@ -352,28 +356,52 @@ export function AbsensiPage() {
               </div>
 
               {row.quarters > 0 && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground truncate text-xs">
+                <div className="space-y-2">
+                  <span className="text-muted-foreground block truncate text-xs">
                     {row.tags.length > 0
                       ? row.tags.map((project) => project.name).join(' · ')
                       : 'Belum ada proyek'}
                   </span>
-                  <Button
-                    variant="outline"
-                    className="h-11 shrink-0 px-3 text-xs"
-                    onClick={() => {
-                      setProjectTarget({ workerId: row.worker_id, name: row.name })
-                    }}
-                    disabled={row.locked || projects.isPending}
-                  >
-                    <Tag className="size-4" aria-hidden />
-                    Proyek
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-11 flex-1 px-3 text-xs"
+                      onClick={() => {
+                        setProjectTarget({ workerId: row.worker_id, name: row.name })
+                      }}
+                      disabled={row.locked || projects.isPending}
+                    >
+                      <Tag className="size-4" aria-hidden />
+                      Proyek
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-11 flex-1 px-3 text-xs"
+                      onClick={() => {
+                        setAdvanceTarget({ workerId: row.worker_id, name: row.name })
+                      }}
+                      disabled={row.locked || !currentDate}
+                    >
+                      <Banknote className="size-4" aria-hidden />
+                      Kas bon
+                    </Button>
+                  </div>
                 </div>
               )}
             </li>
           ))}
         </ul>
+      )}
+
+      {advanceTarget && (
+        <CashAdvanceSheet
+          open={Boolean(advanceTarget)}
+          onOpenChange={(open) => {
+            if (!open) setAdvanceTarget(null)
+          }}
+          workerId={advanceTarget.workerId}
+          defaultDate={currentDate}
+        />
       )}
 
       <AttendanceProjectSheet

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { z } from 'zod'
 
 import {
@@ -221,6 +222,17 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
             <Button type="submit" className="h-11 w-full" disabled={pending}>
               {pending ? 'Menyimpan…' : 'Simpan'}
             </Button>
+
+            {isEdit && worker && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full"
+                render={<Link to={`/pekerja/${worker.id}`} />}
+              >
+                Lihat detail dan kas bon
+              </Button>
+            )}
 
             {isEdit && (
               <Button
