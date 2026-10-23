@@ -209,8 +209,8 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
   - `PATCH /api/recaps/{id}/extra-fees/{feeId}`, `DELETE /api/recaps/{id}/extra-fees/{feeId}`, `POST /api/recaps/{id}/extra-fees`
   - `POST /api/recaps/{id}/finalize`, `POST /api/recaps/{id}/reopen`
   - `GET /api/recaps/{id}/export.xlsx`, `GET /api/recaps/{id}/whatsapp`
-  - `GET /api/recaps/{id}/share` (existing link or 404), `POST /api/recaps/{id}/share` (create or return the same link), `DELETE /api/recaps/{id}/share` (204). Only final recaps can be shared; the response is `{token, url}` with `url` the absolute path `/bagikan/<token>`.
-  - `GET /api/public/recaps/{token}` (public, no session) returns the same `Detail` shape as `GET /api/recaps/{id}` for a still-final recap; unknown tokens and reopened recaps return 404.
+  - `GET /api/recaps/{id}/share` (existing link or 404), `POST /api/recaps/{id}/share` (create or return the same link), `DELETE /api/recaps/{id}/share` (204). Drafts can be shared too (the public page follows the live draft); the response is `{token, url}` with `url` the absolute path `/bagikan/<token>`.
+  - `GET /api/public/recaps/{token}` (public, no session) returns the same `Detail` shape as `GET /api/recaps/{id}` for any shared recap, draft or final; unknown tokens return 404.
 - Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error - the record simply stays.
 
 ## 8. Frontend rules

@@ -637,7 +637,7 @@ func newFinalRecap(t *testing.T, svc *Service, sqlDB *sql.DB) int64 {
 	return recap.ID
 }
 
-func TestCreateShareIsFinalOnlyAndIdempotent(t *testing.T) {
+func TestCreateShareIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	svc, sqlDB := testService(t)
 	seedWorker(t, sqlDB, 1, "Budi", 100_000)
@@ -647,17 +647,6 @@ func TestCreateShareIsFinalOnlyAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if _, err := svc.CreateShare(ctx, draft.ID); err != ErrNotFinal {
-		t.Fatalf("draft share error = %v, want ErrNotFinal", err)
-	}
-	if _, err := svc.ShareToken(ctx, draft.ID); err != ErrNotFinal {
-		t.Fatalf("draft share token error = %v, want ErrNotFinal", err)
-	}
-
-	if err := svc.Finalize(ctx, draft.ID); err != nil {
-		t.Fatalf("Finalize: %v", err)
-	}
-
 	first, err := svc.CreateShare(ctx, draft.ID)
 	if err != nil {
 		t.Fatalf("CreateShare: %v", err)
@@ -759,8 +748,7 @@ func TestPublicDetailShareLifecycle(t *testing.T) {
 	if err := svc.Reopen(ctx, recapID); err != nil {
 		t.Fatalf("Reopen: %v", err)
 	}
-	if _, err := svc.PublicDetail(ctx, token); err != ErrShareNotFound {
-		t.Fatalf("public detail after reopen = %v, want ErrShareNotFound", err)
+	if _, err := svc.PublicDetail(ctx, token); err != nil {
+		t.Fatalf("public detail after reopen: %v", err)
 	}
 }
-

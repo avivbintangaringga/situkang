@@ -194,6 +194,14 @@ export function RekapDetailPage() {
             {finalize.isPending ? 'Memfinalkan…' : 'Finalkan rekap'}
           </Button>
           <Button
+            variant="outline"
+            className="size-9 shrink-0 p-0"
+            aria-label="Bagikan rekap"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 className="size-4" aria-hidden />
+          </Button>
+          <Button
             variant="destructive"
             className="h-9 px-4"
             onClick={() => setConfirmDelete(true)}
