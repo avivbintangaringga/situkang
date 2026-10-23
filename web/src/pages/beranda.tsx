@@ -34,7 +34,7 @@ export function BerandaPage() {
       </div>
 
       {dashboard.data?.draft_recap_id && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
           <p className="text-sm font-medium">Ada draft rekap yang belum difinalkan.</p>
           <p className="mt-1 text-xs">
             Periksa dan finalkan agar pembayaran tercatat.

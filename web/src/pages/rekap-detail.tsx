@@ -236,7 +236,7 @@ export function RekapDetailPage() {
             </div>
 
             {line.warning > 0 && (
-              <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                 Ada {line.warning} hari belum dibayar sebelum tanggal ini.
               </p>
             )}
