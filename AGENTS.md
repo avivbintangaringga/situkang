@@ -190,7 +190,7 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
 
 ## 7. API conventions
 
-- All routes under `/api`. JSON in/out. Chi router, middleware: request logger, recoverer, session auth (everything except `POST /api/auth/login`).
+- All routes under `/api`. JSON in/out. Chi router, middleware: request logger, recoverer, session auth (everything except `POST /api/auth/login` and `GET /api/health`, which are public).
 - Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`. Session id in an `HttpOnly`, `SameSite=Lax`, `Secure` (when not localhost) cookie, 30-day expiry. Password hashed with bcrypt. Mutating routes accept only `application/json`.
 - Errors always: `{"error": "<pesan dalam Bahasa Indonesia>"}` with a correct status code (400 validation, 401, 404, 409 conflict/locked, 500).
 - Validate every input on the server. Never trust the client. Minimum rules: worker `name` required (1–100 chars), `role` required, `daily_fee >= 0`; project `name` required, `status` in `aktif|selesai|ditunda`, `end_date >= start_date` when both are set; kas bon `amount > 0`; extra fee `description` required and `amount != 0`; `quarters` in 1–4; dates must be real calendar dates in `YYYY-MM-DD`.

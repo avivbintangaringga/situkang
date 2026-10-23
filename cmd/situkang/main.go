@@ -2,10 +2,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -17,8 +19,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/term"
 
 	situkang "situkang"
+	"situkang/internal/auth"
+	"situkang/internal/clock"
 	"situkang/internal/config"
 	"situkang/internal/db"
 	"situkang/internal/httpx"
@@ -42,15 +47,6 @@ func run() error {
 	}
 	time.Local = cfg.Location
 
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "create-admin":
-			return runCreateAdmin()
-		default:
-			return fmt.Errorf("unknown command %q", os.Args[1])
-		}
-	}
-
 	sqlDB, err := db.Open(cfg.DBPath)
 	if err != nil {
 		return err
@@ -65,12 +61,23 @@ func run() error {
 		return err
 	}
 
+	authSvc := auth.NewService(sqlDB, clock.New(cfg.Location))
+
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "create-admin":
+			return runCreateAdmin(authSvc)
+		default:
+			return fmt.Errorf("unknown command %q", os.Args[1])
+		}
+	}
+
 	dist, err := situkang.StaticFS()
 	if err != nil {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, dist)
+	router := newRouter(sqlDB, authSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -103,7 +110,9 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, dist fs.FS) http.Handler {
+	authHandler := auth.NewHandler(authSvc)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -117,6 +126,14 @@ func newRouter(sqlDB *sql.DB, dist fs.FS) http.Handler {
 				return
 			}
 			httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		})
+
+		api.Post("/auth/login", authHandler.Login)
+
+		api.Group(func(protected chi.Router) {
+			protected.Use(authSvc.RequireSession)
+			protected.Get("/auth/me", authHandler.Me)
+			protected.Post("/auth/logout", authHandler.Logout)
 		})
 	})
 
@@ -132,8 +149,55 @@ func newRouter(sqlDB *sql.DB, dist fs.FS) http.Handler {
 	return r
 }
 
-// runCreateAdmin is filled in with the auth step; until then it must fail loudly
-// instead of silently starting the server.
-func runCreateAdmin() error {
-	return errors.New("create-admin is not implemented yet")
+// runCreateAdmin prompts for credentials and stores a new admin account.
+// Password input is hidden on a terminal and falls back to plain reads when
+// stdin is piped.
+func runCreateAdmin(svc *auth.Service) error {
+	in := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Username: ")
+	username, err := in.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+
+	password, err := readPassword(in, "Password: ")
+	if err != nil {
+		return err
+	}
+	confirmation, err := readPassword(in, "Confirm password: ")
+	if err != nil {
+		return err
+	}
+	if password != confirmation {
+		return errors.New("passwords do not match")
+	}
+
+	user, err := svc.CreateUser(context.Background(), strings.TrimSpace(username), password)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Admin %q created.\n", user.Username)
+	return nil
+}
+
+func readPassword(in *bufio.Reader, prompt string) (string, error) {
+	fmt.Print(prompt)
+
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		secret, err := term.ReadPassword(fd)
+		fmt.Println()
+		if err != nil {
+			return "", err
+		}
+		return string(secret), nil
+	}
+
+	line, err := in.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return strings.TrimRight(line, "\r\n"), nil
 }
