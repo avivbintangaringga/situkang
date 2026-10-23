@@ -207,7 +207,7 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
 
 ## 8. Frontend rules
 
-- **Mobile first**: build layouts for 360px; use bottom navigation (Beranda, Absensi, Rekap, Pekerja, Proyek) on mobile and a sidebar on `md:` and up. Touch targets at least 44px. No horizontal scrolling. Prefer cards over wide tables on mobile.
+- **Mobile first**: build layouts for 360px; use bottom navigation (Beranda, Absensi, Rekap, Pekerja, Proyek) on mobile and a sidebar on `md:` and up. Touch targets at least 44px. No horizontal scrolling. Prefer cards over wide tables on mobile. Add each nav item as its screen lands; never link to a placeholder page.
 - Use shadcn components (`bunx shadcn@latest add <component>`). Do not hand-roll buttons, dialogs, selects, or toasts that shadcn already provides. On mobile use `Drawer`/`Sheet` instead of centered dialogs for forms.
 - All user-visible text in Indonesian. Examples: Simpan, Batal, Hapus, Tambah, Ubah, Cari, Belum dibayar, Sudah dibayar, Kas bon, Rekap, Absensi, Pekerja, Proyek, Penuh, Setengah hari.
 - Attendance screen (the most-used screen): pick a date (defaults to today), see all active workers as a list, each with a one-tap control for ¼ / ½ / ¾ / Penuh and an "absen" (not present) state. Default when marking present is **Penuh**. Optimize for fewest taps.

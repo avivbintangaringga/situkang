@@ -27,6 +27,7 @@ import (
 	"situkang/internal/config"
 	"situkang/internal/db"
 	"situkang/internal/httpx"
+	"situkang/internal/worker"
 )
 
 func main() {
@@ -61,7 +62,9 @@ func run() error {
 		return err
 	}
 
-	authSvc := auth.NewService(sqlDB, clock.New(cfg.Location))
+	appClock := clock.New(cfg.Location)
+	authSvc := auth.NewService(sqlDB, appClock)
+	workerSvc := worker.NewService(sqlDB, appClock)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -77,7 +80,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -110,8 +113,9 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
+	workerHandler := worker.NewHandler(workerSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -134,6 +138,12 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, dist fs.FS) http.Handler {
 			protected.Use(authSvc.RequireSession)
 			protected.Get("/auth/me", authHandler.Me)
 			protected.Post("/auth/logout", authHandler.Logout)
+
+			protected.Get("/workers", workerHandler.List)
+			protected.Post("/workers", workerHandler.Create)
+			protected.Get("/workers/{id}", workerHandler.Get)
+			protected.Put("/workers/{id}", workerHandler.Update)
+			protected.Delete("/workers/{id}", workerHandler.Delete)
 		})
 	})
 
