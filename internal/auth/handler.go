@@ -80,6 +80,121 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, user)
 }
 
+type createUserRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// ListUsers returns every admin account.
+func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	accounts, err := h.svc.ListUsers(r.Context())
+	if err != nil {
+		slog.Error("list users failed", "error", err)
+		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, accounts)
+}
+
+// CreateUser adds another admin account.
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var req createUserRequest
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.DecodeError(w, err)
+		return
+	}
+
+	user, err := h.svc.CreateUser(r.Context(), req.Username, req.Password)
+	if err != nil {
+		writeCredentialsError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, user)
+}
+
+type updateUsernameRequest struct {
+	Username string `json:"username"`
+}
+
+// UpdateUsername renames the signed-in account.
+func (h *Handler) UpdateUsername(w http.ResponseWriter, r *http.Request) {
+	current, ok := UserFrom(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "Sesi Anda telah berakhir. Silakan masuk kembali.")
+		return
+	}
+
+	var req updateUsernameRequest
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.DecodeError(w, err)
+		return
+	}
+
+	user, err := h.svc.RenameUser(r.Context(), current.ID, req.Username)
+	if err != nil {
+		writeCredentialsError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, user)
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// ChangePassword updates the signed-in account's password.
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	current, ok := UserFrom(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "Sesi Anda telah berakhir. Silakan masuk kembali.")
+		return
+	}
+
+	var req changePasswordRequest
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.DecodeError(w, err)
+		return
+	}
+
+	var token string
+	if cookie, err := r.Cookie(SessionCookieName); err == nil {
+		token = cookie.Value
+	}
+
+	err := h.svc.ChangePassword(r.Context(), current.ID, token, req.CurrentPassword, req.NewPassword)
+	switch {
+	case errors.Is(err, ErrWrongPassword):
+		httpx.Error(w, http.StatusBadRequest, "Kata sandi saat ini salah.")
+		return
+	case errors.Is(err, ErrWeakPassword):
+		httpx.Error(w, http.StatusBadRequest, "Kata sandi baru minimal 8 karakter.")
+		return
+	case errors.Is(err, ErrInvalidSession):
+		httpx.Error(w, http.StatusUnauthorized, "Sesi Anda telah berakhir. Silakan masuk kembali.")
+		return
+	case err != nil:
+		slog.Error("change password failed", "error", err)
+		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func writeCredentialsError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrInvalidUsername):
+		httpx.Error(w, http.StatusBadRequest, "Nama pengguna harus 3-50 karakter.")
+	case errors.Is(err, ErrWeakPassword):
+		httpx.Error(w, http.StatusBadRequest, "Kata sandi minimal 8 karakter.")
+	case errors.Is(err, ErrUsernameTaken):
+		httpx.Error(w, http.StatusConflict, "Nama pengguna sudah dipakai.")
+	default:
+		slog.Error("account request failed", "error", err)
+		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")
+	}
+}
+
 func setSessionCookie(w http.ResponseWriter, r *http.Request, token string, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,

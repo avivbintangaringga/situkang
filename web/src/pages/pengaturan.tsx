@@ -1,5 +1,8 @@
+import { ChevronRight, Users } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 
+import { AccountSettings } from '@/components/account-settings'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
@@ -63,6 +66,24 @@ export function PengaturanPage() {
           Atur hari kerja. Absensi tetap bisa dicatat pada hari libur.
         </p>
       </div>
+
+      <AccountSettings />
+
+      <Link
+        to="/pengguna"
+        className="hover:bg-muted/50 flex min-h-14 items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <Users className="text-muted-foreground size-5 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            <span className="block font-medium">Kelola pengguna</span>
+            <span className="text-muted-foreground block text-sm">
+              Lihat dan tambah akun admin.
+            </span>
+          </span>
+        </span>
+        <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden />
+      </Link>
 
       {settings.isPending && <Skeleton className="h-80 w-full rounded-xl" />}
 

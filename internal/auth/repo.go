@@ -12,6 +12,13 @@ type User struct {
 	Username string `json:"username"`
 }
 
+// Account is the account row shown in the user management screen.
+type Account struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	CreatedAt string `json:"created_at"`
+}
+
 type userRecord struct {
 	User
 	PasswordHash string
@@ -31,6 +38,44 @@ func findUserByID(ctx context.Context, db *sql.DB, id int64) (User, error) {
 	var user User
 	err := db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Username)
 	return user, err
+}
+
+func findUserRecordByID(ctx context.Context, db *sql.DB, id int64) (userRecord, error) {
+	const query = `SELECT id, username, password_hash FROM users WHERE id = ?`
+
+	var rec userRecord
+	err := db.QueryRowContext(ctx, query, id).Scan(&rec.ID, &rec.Username, &rec.PasswordHash)
+	return rec, err
+}
+
+func listUsers(ctx context.Context, db *sql.DB) ([]Account, error) {
+	const query = `SELECT id, username, created_at FROM users ORDER BY username`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts := make([]Account, 0)
+	for rows.Next() {
+		var account Account
+		if err := rows.Scan(&account.ID, &account.Username, &account.CreatedAt); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, rows.Err()
+}
+
+func updateUsername(ctx context.Context, db *sql.DB, id int64, username string) error {
+	_, err := db.ExecContext(ctx, `UPDATE users SET username = ? WHERE id = ?`, username, id)
+	return err
+}
+
+func updateUserPassword(ctx context.Context, tx *sql.Tx, id int64, passwordHash string) error {
+	_, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, id)
+	return err
 }
 
 func insertUser(ctx context.Context, db *sql.DB, username, passwordHash string, now time.Time) (User, error) {
@@ -79,5 +124,13 @@ func findSession(ctx context.Context, db *sql.DB, id string) (User, time.Time, e
 
 func deleteSession(ctx context.Context, db *sql.DB, id string) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, id)
+	return err
+}
+
+// deleteOtherSessions removes every session of a user except keepID, which is
+// the hashed id of the session that must stay signed in.
+func deleteOtherSessions(ctx context.Context, tx *sql.Tx, userID int64, keepID string) error {
+	_, err := tx.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = ? AND id <> ?`, userID, keepID)
 	return err
 }

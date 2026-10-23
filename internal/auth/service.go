@@ -33,6 +33,7 @@ var (
 	ErrUsernameTaken      = errors.New("username already taken")
 	ErrInvalidUsername    = errors.New("invalid username")
 	ErrWeakPassword       = errors.New("password too short")
+	ErrWrongPassword      = errors.New("current password is wrong")
 )
 
 // Service owns the auth business rules: hashing, tokens, and expiry.
@@ -69,6 +70,73 @@ func (s *Service) CreateUser(ctx context.Context, username, password string) (Us
 	}
 
 	return insertUser(ctx, s.db, username, string(hash), s.clock.Now())
+}
+
+// ListUsers returns every admin account ordered by username.
+func (s *Service) ListUsers(ctx context.Context) ([]Account, error) {
+	return listUsers(ctx, s.db)
+}
+
+// RenameUser changes the username of an existing account. The new name follows
+// the same length rules as account creation and must stay unique.
+func (s *Service) RenameUser(ctx context.Context, id int64, username string) (User, error) {
+	username = strings.TrimSpace(username)
+	if len(username) < minUsernameLength || len(username) > maxUsernameLength {
+		return User{}, ErrInvalidUsername
+	}
+
+	existing, err := findUserByUsername(ctx, s.db, username)
+	switch {
+	case err == nil:
+		if existing.ID != id {
+			return User{}, ErrUsernameTaken
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return User{}, err
+	}
+
+	if err := updateUsername(ctx, s.db, id, username); err != nil {
+		return User{}, err
+	}
+	return User{ID: id, Username: username}, nil
+}
+
+// ChangePassword verifies the current password, stores the new one, and signs
+// out every other session of the user while keeping currentToken valid.
+func (s *Service) ChangePassword(ctx context.Context, id int64, currentToken, currentPassword, newPassword string) error {
+	if len(newPassword) < minPasswordLength {
+		return ErrWeakPassword
+	}
+
+	rec, err := findUserRecordByID(ctx, s.db, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrInvalidSession
+		}
+		return err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(rec.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrWrongPassword
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := updateUserPassword(ctx, tx, id, string(hash)); err != nil {
+		return err
+	}
+	if err := deleteOtherSessions(ctx, tx, id, hashToken(currentToken)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // Authenticate checks a username and password pair.

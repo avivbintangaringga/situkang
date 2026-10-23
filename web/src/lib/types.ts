@@ -3,6 +3,12 @@ export type User = {
   username: string
 }
 
+export type Account = {
+  id: number
+  username: string
+  created_at: string
+}
+
 export type Worker = {
   id: number
   name: string

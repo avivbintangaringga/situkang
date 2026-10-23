@@ -93,6 +93,157 @@ func TestCreateUserRejectsDuplicate(t *testing.T) {
 	}
 }
 
+func TestListUsersOrdersByUsername(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	for _, name := range []string{"zaki", "andi", "budi"} {
+		if _, err := svc.CreateUser(ctx, name, "rahasia123"); err != nil {
+			t.Fatalf("CreateUser %q: %v", name, err)
+		}
+	}
+
+	accounts, err := svc.ListUsers(ctx)
+	if err != nil {
+		t.Fatalf("ListUsers: %v", err)
+	}
+	if len(accounts) != 3 {
+		t.Fatalf("accounts = %d, want 3", len(accounts))
+	}
+	want := []string{"andi", "budi", "zaki"}
+	for i, account := range accounts {
+		if account.Username != want[i] {
+			t.Fatalf("account %d = %q, want %q", i, account.Username, want[i])
+		}
+		if account.CreatedAt == "" {
+			t.Fatalf("account %q has an empty created_at", account.Username)
+		}
+	}
+}
+
+func TestRenameUser(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	first, err := svc.CreateUser(ctx, "admin", "rahasia123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	renamed, err := svc.RenameUser(ctx, first.ID, "  supervisor  ")
+	if err != nil {
+		t.Fatalf("RenameUser: %v", err)
+	}
+	if renamed.Username != "supervisor" {
+		t.Fatalf("username = %q, want supervisor", renamed.Username)
+	}
+
+	if _, err := svc.Authenticate(ctx, "supervisor", "rahasia123"); err != nil {
+		t.Fatalf("Authenticate with renamed account: %v", err)
+	}
+	if _, err := svc.RenameUser(ctx, first.ID, "ab"); !errors.Is(err, ErrInvalidUsername) {
+		t.Fatalf("short username error = %v, want ErrInvalidUsername", err)
+	}
+}
+
+func TestRenameUserRejectsDuplicate(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	if _, err := svc.CreateUser(ctx, "admin", "rahasia123"); err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	second, err := svc.CreateUser(ctx, "budi", "rahasia123")
+	if err != nil {
+		t.Fatalf("CreateUser budi: %v", err)
+	}
+
+	if _, err := svc.RenameUser(ctx, second.ID, "admin"); !errors.Is(err, ErrUsernameTaken) {
+		t.Fatalf("duplicate rename error = %v, want ErrUsernameTaken", err)
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	user, err := svc.CreateUser(ctx, "admin", "rahasia123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, _, err := svc.CreateSession(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	if err := svc.ChangePassword(ctx, user.ID, token, "rahasia123", "rahasia456"); err != nil {
+		t.Fatalf("ChangePassword: %v", err)
+	}
+
+	if _, err := svc.Authenticate(ctx, "admin", "rahasia456"); err != nil {
+		t.Fatalf("Authenticate with new password: %v", err)
+	}
+	if _, err := svc.Authenticate(ctx, "admin", "rahasia123"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("old password error = %v, want ErrInvalidCredentials", err)
+	}
+	if _, err := svc.UserForToken(ctx, token); err != nil {
+		t.Fatalf("current session must survive: %v", err)
+	}
+}
+
+func TestChangePasswordRejectsWrongCurrent(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	user, err := svc.CreateUser(ctx, "admin", "rahasia123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, _, err := svc.CreateSession(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	err = svc.ChangePassword(ctx, user.ID, token, "salah", "rahasia456")
+	if !errors.Is(err, ErrWrongPassword) {
+		t.Fatalf("error = %v, want ErrWrongPassword", err)
+	}
+
+	err = svc.ChangePassword(ctx, user.ID, token, "rahasia123", "pendek")
+	if !errors.Is(err, ErrWeakPassword) {
+		t.Fatalf("short password error = %v, want ErrWeakPassword", err)
+	}
+}
+
+func TestChangePasswordRemovesOtherSessions(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t, clock.New(time.UTC))
+
+	user, err := svc.CreateUser(ctx, "admin", "rahasia123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	current, _, err := svc.CreateSession(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("CreateSession current: %v", err)
+	}
+	other, _, err := svc.CreateSession(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("CreateSession other: %v", err)
+	}
+
+	if err := svc.ChangePassword(ctx, user.ID, current, "rahasia123", "rahasia456"); err != nil {
+		t.Fatalf("ChangePassword: %v", err)
+	}
+
+	if _, err := svc.UserForToken(ctx, current); err != nil {
+		t.Fatalf("current session must survive: %v", err)
+	}
+	if _, err := svc.UserForToken(ctx, other); !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("other session error = %v, want ErrInvalidSession", err)
+	}
+}
+
 func TestAuthenticateWrongPassword(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := testService(t, clock.New(time.UTC))

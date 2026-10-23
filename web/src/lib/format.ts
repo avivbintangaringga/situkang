@@ -38,6 +38,11 @@ export function formatDateShort(value: string): string {
   return format(parseISO(value), 'd MMM', { locale: localeId })
 }
 
+/** Formats an RFC3339 timestamp as "12 Jan 2026". */
+export function formatTimestampDate(value: string): string {
+  return format(parseISO(value), 'd MMM yyyy', { locale: localeId })
+}
+
 /** Today in the device timezone, as YYYY-MM-DD. */
 export function todayISO(): string {
   return format(new Date(), 'yyyy-MM-dd')

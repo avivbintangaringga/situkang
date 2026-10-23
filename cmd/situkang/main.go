@@ -156,6 +156,11 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Use(authSvc.RequireSession)
 			protected.Get("/auth/me", authHandler.Me)
 			protected.Post("/auth/logout", authHandler.Logout)
+			protected.Patch("/auth/username", authHandler.UpdateUsername)
+			protected.Patch("/auth/password", authHandler.ChangePassword)
+
+			protected.Get("/users", authHandler.ListUsers)
+			protected.Post("/users", authHandler.CreateUser)
 
 			protected.Get("/workers", workerHandler.List)
 			protected.Post("/workers", workerHandler.Create)
