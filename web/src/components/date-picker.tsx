@@ -47,6 +47,7 @@ export function DatePicker({
   className,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const [month, setMonth] = useState<Date>(() => (value ? parseISO(value) : new Date()))
   const [manual, setManual] = useState('')
   const [invalid, setInvalid] = useState(false)
   const selected = value ? parseISO(value) : undefined
@@ -68,6 +69,8 @@ export function DatePicker({
       onOpenChange={(next) => {
         setOpen(next)
         if (next) {
+          // Start on the selected month instead of jumping back to today.
+          setMonth(value ? parseISO(value) : new Date())
           setManual(value ?? '')
           setInvalid(false)
         }
@@ -131,9 +134,10 @@ export function DatePicker({
           locale={localeId}
           weekStartsOn={1}
           captionLayout="dropdown"
+          month={month}
+          onMonthChange={setMonth}
           startMonth={new Date(2000, 0)}
           endMonth={new Date(maxYear, 11)}
-          autoFocus
         />
 
         {value && onClear && (
