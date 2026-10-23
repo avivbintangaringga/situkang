@@ -158,6 +158,8 @@ For workers with `paid = false`: their extra fees for this draft are detached (`
 - **Periode label** (both exports and UI): derive it from the items actually included for that worker - earliest attendance/kas bon date to latest - never from the recap `mode`. For `all_unsettled` a worker catching up may span several weeks; the label must show that honestly (`06 Jan 2026 - 18 Jan 2026`). If a worker has no dated items (extra fees only), show the recap's `created_at` date.
 - **WhatsApp**: server returns formatted plain text at `GET /api/recaps/{id}/whatsapp?worker_id=` (per worker, or all workers if omitted). The frontend offers a **Salin** (copy) button and a **Kirim WA** button that opens `https://wa.me/?text=<urlencoded>`. No WhatsApp API.
 
+WhatsApp text for all workers is one compact message: a period line, one line per worker (`Nama (Peran): Rp total`), then the overall `Gaji kotor`, optional `Kas bon` and `Tambahan`, and `*Total dibayar*`. Do not repeat the full per-worker breakdown there.
+
 WhatsApp text format (per worker):
 
 ```

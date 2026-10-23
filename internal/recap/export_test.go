@@ -119,3 +119,36 @@ func TestFormatHelpers(t *testing.T) {
 		t.Fatalf("formatDays 23 = %q", got)
 	}
 }
+
+func TestAllWhatsAppTextIsCompactWithOverallTotal(t *testing.T) {
+	detail := sampleDetail()
+	detail.PeriodStart = "2026-01-06"
+	detail.PeriodEnd = "2026-01-11"
+	detail.Totals = Totals{Gross: 1_325_000, Advances: 150_000, Extras: 50_000, Net: 1_275_000}
+	detail.Workers = append(detail.Workers, WorkerLine{
+		WorkerID: 2,
+		Name:     "Andi",
+		Role:     "Tukang Kayu",
+		Net:      500_000,
+	})
+
+	text := AllWhatsAppText(detail)
+
+	for _, expected := range []string{
+		"Periode: 06 Jan 2026 - 11 Jan 2026",
+		"Budi (Tukang Batu): Rp 775.000",
+		"Andi (Tukang Kayu): Rp 500.000",
+		"Gaji kotor: Rp 1.325.000",
+		"Kas bon: - Rp 150.000",
+		"Tambahan: + Rp 50.000",
+		"*Total dibayar: Rp 1.275.000*",
+	} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("message missing %q:\n%s", expected, text)
+		}
+	}
+
+	if strings.Count(text, "Kehadiran:") != 0 {
+		t.Fatalf("all-workers message must not repeat per-worker breakdown:\n%s", text)
+	}
+}

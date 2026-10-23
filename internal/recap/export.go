@@ -42,13 +42,43 @@ func WhatsAppText(line WorkerLine) string {
 	return b.String()
 }
 
-// AllWhatsAppText joins every worker message with a blank line.
+// AllWhatsAppText renders one compact message: a line per worker plus the
+// overall totals, which is what a supervisor actually pays out.
 func AllWhatsAppText(detail Detail) string {
-	parts := make([]string, 0, len(detail.Workers))
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "*REKAP GAJI*\n")
+	fmt.Fprintf(&b, "Periode: %s\n\n", periodRange(detail))
+
 	for _, line := range detail.Workers {
-		parts = append(parts, WhatsAppText(line))
+		fmt.Fprintf(&b, "%s (%s): %s\n", line.Name, line.Role, formatRupiah(line.Net))
 	}
-	return strings.Join(parts, "\n\n")
+
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "Gaji kotor: %s\n", formatRupiah(detail.Totals.Gross))
+	if detail.Totals.Advances > 0 {
+		fmt.Fprintf(&b, "Kas bon: - %s\n", formatRupiah(detail.Totals.Advances))
+	}
+	if detail.Totals.Extras != 0 {
+		sign := "+"
+		if detail.Totals.Extras < 0 {
+			sign = "-"
+		}
+		fmt.Fprintf(&b, "Tambahan: %s %s\n", sign, formatRupiah(abs(detail.Totals.Extras)))
+	}
+	fmt.Fprintf(&b, "*Total dibayar: %s*", formatRupiah(detail.Totals.Net))
+
+	return b.String()
+}
+
+func periodRange(detail Detail) string {
+	if detail.PeriodStart == "" {
+		return "-"
+	}
+	if detail.PeriodStart == detail.PeriodEnd {
+		return formatDateID(detail.PeriodStart)
+	}
+	return formatDateID(detail.PeriodStart) + " - " + formatDateID(detail.PeriodEnd)
 }
 
 func periodLabel(line WorkerLine) string {
