@@ -6,6 +6,8 @@ import { AbsensiPage } from '@/pages/absensi'
 import { BerandaPage } from '@/pages/beranda'
 import { LoginPage } from '@/pages/login'
 import { PekerjaPage } from '@/pages/pekerja'
+import { RekapDetailPage } from '@/pages/rekap-detail'
+import { RekapPage } from '@/pages/rekap'
 import { WorkerDetailPage } from '@/pages/worker-detail'
 
 function App() {
@@ -18,6 +20,8 @@ function App() {
           <Route path="/absensi" element={<AbsensiPage />} />
           <Route path="/pekerja" element={<PekerjaPage />} />
           <Route path="/pekerja/:id" element={<WorkerDetailPage />} />
+          <Route path="/rekap" element={<RekapPage />} />
+          <Route path="/rekap/:id" element={<RekapDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

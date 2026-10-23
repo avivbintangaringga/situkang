@@ -46,3 +46,68 @@ export type CashAdvance = {
   note: string
   locked: boolean
 }
+
+export type RecapStatus = 'draft' | 'final'
+export type RecapMode = 'since_monday' | 'all_unsettled' | 'custom'
+
+export type Recap = {
+  id: number
+  mode: RecapMode
+  start_date: string | null
+  end_date: string | null
+  status: RecapStatus
+  created_at: string
+  finalized_at: string | null
+}
+
+export type RecapAttendanceItem = {
+  id: number
+  date: string
+  quarters: number
+  earned: number
+}
+
+export type RecapAdvanceItem = {
+  id: number
+  date: string
+  amount: number
+  note: string
+}
+
+export type RecapExtraFee = {
+  id: number
+  worker_id: number
+  amount: number
+  description: string
+}
+
+export type RecapWorkerLine = {
+  worker_id: number
+  name: string
+  role: string
+  quarters: number
+  gross: number
+  advances: number
+  extras: number
+  net: number
+  paid: boolean
+  warning: number
+  attendance: RecapAttendanceItem[]
+  cash_advances: RecapAdvanceItem[]
+  extra_fees: RecapExtraFee[]
+}
+
+export type RecapTotals = {
+  gross: number
+  advances: number
+  extras: number
+  net: number
+}
+
+export type RecapDetail = {
+  recap: Recap
+  workers: RecapWorkerLine[]
+  totals: RecapTotals
+  period_start: string
+  period_end: string
+}

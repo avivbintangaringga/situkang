@@ -53,3 +53,10 @@ export function quartersLabel(quarters: number): string {
       return 'Absen'
   }
 }
+
+/** Formats a quarters total as Indonesian days: 22 -> "5,5". */
+export function formatDays(quarters: number): string {
+  const days = quarters / 4
+  const text = Number.isInteger(days) ? String(days) : days.toFixed(2).replace(/0$/, '')
+  return text.replace('.', ',')
+}

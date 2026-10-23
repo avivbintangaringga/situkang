@@ -29,6 +29,7 @@ import (
 	"situkang/internal/config"
 	"situkang/internal/db"
 	"situkang/internal/httpx"
+	"situkang/internal/recap"
 	"situkang/internal/worker"
 )
 
@@ -69,6 +70,7 @@ func run() error {
 	workerSvc := worker.NewService(sqlDB, appClock)
 	attendanceSvc := attendance.NewService(sqlDB, appClock)
 	cashAdvanceSvc := cashadvance.NewService(sqlDB, appClock)
+	recapSvc := recap.NewService(sqlDB, appClock)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -84,7 +86,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -117,11 +119,12 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
 	workerHandler := worker.NewHandler(workerSvc)
 	attendanceHandler := attendance.NewHandler(attendanceSvc)
 	cashAdvanceHandler := cashadvance.NewHandler(cashAdvanceSvc)
+	recapHandler := recap.NewHandler(recapSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -159,6 +162,17 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Post("/cash-advances", cashAdvanceHandler.Create)
 			protected.Put("/cash-advances/{id}", cashAdvanceHandler.Update)
 			protected.Delete("/cash-advances/{id}", cashAdvanceHandler.Delete)
+
+			protected.Get("/recaps", recapHandler.List)
+			protected.Post("/recaps", recapHandler.Create)
+			protected.Get("/recaps/{id}", recapHandler.Detail)
+			protected.Delete("/recaps/{id}", recapHandler.Delete)
+			protected.Patch("/recaps/{id}/paid", recapHandler.SetPaid)
+			protected.Post("/recaps/{id}/finalize", recapHandler.Finalize)
+			protected.Post("/recaps/{id}/reopen", recapHandler.Reopen)
+			protected.Post("/recaps/{id}/extra-fees", recapHandler.AddFee)
+			protected.Patch("/recaps/{id}/extra-fees/{feeId}", recapHandler.UpdateFee)
+			protected.Delete("/recaps/{id}/extra-fees/{feeId}", recapHandler.DeleteFee)
 		})
 	})
 

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Home, Users } from 'lucide-react'
+import { ClipboardCheck, Home, Receipt, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 
@@ -17,6 +17,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { to: '/', label: 'Beranda', icon: Home, end: true },
   { to: '/absensi', label: 'Absensi', icon: ClipboardCheck },
+  { to: '/rekap', label: 'Rekap', icon: Receipt },
   { to: '/pekerja', label: 'Pekerja', icon: Users },
 ]
 
