@@ -3,7 +3,9 @@ package recap
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sort"
@@ -25,6 +27,7 @@ var (
 	ErrInvalidWorker       = errors.New("invalid worker")
 	ErrInvalidAmount       = errors.New("invalid extra fee amount")
 	ErrDescriptionRequired = errors.New("extra fee description required")
+	ErrShareNotFound       = errors.New("recap share not found")
 )
 
 const maxDescriptionLength = 200
@@ -129,6 +132,86 @@ func (s *Service) get(ctx context.Context, q queryer, id int64) (Recap, error) {
 	return recap, err
 }
 
+// ShareToken returns the existing public token for a final recap.
+func (s *Service) ShareToken(ctx context.Context, recapID int64) (string, error) {
+	recap, err := s.get(ctx, s.db, recapID)
+	if err != nil {
+		return "", err
+	}
+	if recap.Status != "final" {
+		return "", ErrNotFinal
+	}
+	token, err := shareToken(ctx, s.db, recapID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrShareNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("load recap share: %w", err)
+	}
+	return token, nil
+}
+
+// CreateShare returns the public token for a final recap, creating it once.
+func (s *Service) CreateShare(ctx context.Context, recapID int64) (string, error) {
+	recap, err := s.get(ctx, s.db, recapID)
+	if err != nil {
+		return "", err
+	}
+	if recap.Status != "final" {
+		return "", ErrNotFinal
+	}
+
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generate share token: %w", err)
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+
+	if err := insertShare(ctx, s.db, recapID, token, s.clock.Now().UTC().Format(time.RFC3339)); err != nil {
+		return "", err
+	}
+
+	token, err = shareToken(ctx, s.db, recapID)
+	if err != nil {
+		return "", fmt.Errorf("load recap share: %w", err)
+	}
+	return token, nil
+}
+
+// RevokeShare removes the public token of a recap.
+func (s *Service) RevokeShare(ctx context.Context, recapID int64) error {
+	if _, err := s.get(ctx, s.db, recapID); err != nil {
+		return err
+	}
+	return deleteShare(ctx, s.db, recapID)
+}
+
+// PublicDetail resolves a share token into the frozen recap view.
+func (s *Service) PublicDetail(ctx context.Context, token string) (Detail, error) {
+	if token == "" {
+		return Detail{}, ErrShareNotFound
+	}
+
+	recapID, err := shareRecapID(ctx, s.db, token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Detail{}, ErrShareNotFound
+	}
+	if err != nil {
+		return Detail{}, fmt.Errorf("load recap share: %w", err)
+	}
+
+	recap, err := s.get(ctx, s.db, recapID)
+	if errors.Is(err, ErrNotFound) {
+		return Detail{}, ErrShareNotFound
+	}
+	if err != nil {
+		return Detail{}, err
+	}
+	if recap.Status != "final" {
+		return Detail{}, ErrShareNotFound
+	}
+	return compute(ctx, s.db, recap)
+}
 // SetPaid toggles whether a worker is paid in this draft.
 func (s *Service) SetPaid(ctx context.Context, recapID, workerID int64, paid bool) error {
 	recap, err := s.get(ctx, s.db, recapID)

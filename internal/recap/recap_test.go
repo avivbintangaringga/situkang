@@ -82,6 +82,12 @@ CREATE TABLE extra_fees (
     description TEXT NOT NULL,
     created_at  TEXT NOT NULL
 ) STRICT;
+
+CREATE TABLE recap_shares (
+    recap_id   INTEGER PRIMARY KEY REFERENCES recaps(id) ON DELETE CASCADE,
+    token      TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+) STRICT;
 `
 
 // 2026-01-12 is a Monday.
@@ -614,3 +620,147 @@ func TestRecapNameFallback(t *testing.T) {
 		t.Fatalf("invalid name = %q", got)
 	}
 }
+
+// newFinalRecap seeds one worker attendance and finalizes a recap.
+func newFinalRecap(t *testing.T, svc *Service, sqlDB *sql.DB) int64 {
+	t.Helper()
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-01-05", 4, 100_000)
+
+	recap, err := svc.Create(context.Background(), CreateInput{Mode: "all_unsettled"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := svc.Finalize(context.Background(), recap.ID); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	return recap.ID
+}
+
+func TestCreateShareIsFinalOnlyAndIdempotent(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-01-05", 4, 100_000)
+
+	draft, err := svc.Create(ctx, CreateInput{Mode: "all_unsettled"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := svc.CreateShare(ctx, draft.ID); err != ErrNotFinal {
+		t.Fatalf("draft share error = %v, want ErrNotFinal", err)
+	}
+	if _, err := svc.ShareToken(ctx, draft.ID); err != ErrNotFinal {
+		t.Fatalf("draft share token error = %v, want ErrNotFinal", err)
+	}
+
+	if err := svc.Finalize(ctx, draft.ID); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+
+	first, err := svc.CreateShare(ctx, draft.ID)
+	if err != nil {
+		t.Fatalf("CreateShare: %v", err)
+	}
+	if len(first) != 43 {
+		t.Fatalf("token length = %d, want 43 base64url chars", len(first))
+	}
+
+	second, err := svc.CreateShare(ctx, draft.ID)
+	if err != nil {
+		t.Fatalf("CreateShare again: %v", err)
+	}
+	if second != first {
+		t.Fatalf("token changed: %q then %q", first, second)
+	}
+
+	stored, err := svc.ShareToken(ctx, draft.ID)
+	if err != nil {
+		t.Fatalf("ShareToken: %v", err)
+	}
+	if stored != first {
+		t.Fatalf("ShareToken = %q, want %q", stored, first)
+	}
+
+	var count int
+	if err := sqlDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM recap_shares`).Scan(&count); err != nil {
+		t.Fatalf("count shares: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("share rows = %d, want 1", count)
+	}
+
+	if _, err := svc.CreateShare(ctx, 999); err != ErrNotFound {
+		t.Fatalf("unknown recap share error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRevokeShare(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	recapID := newFinalRecap(t, svc, sqlDB)
+
+	token, err := svc.CreateShare(ctx, recapID)
+	if err != nil {
+		t.Fatalf("CreateShare: %v", err)
+	}
+
+	if err := svc.RevokeShare(ctx, recapID); err != nil {
+		t.Fatalf("RevokeShare: %v", err)
+	}
+	if _, err := svc.PublicDetail(ctx, token); err != ErrShareNotFound {
+		t.Fatalf("public detail after revoke = %v, want ErrShareNotFound", err)
+	}
+	if _, err := svc.ShareToken(ctx, recapID); err != ErrShareNotFound {
+		t.Fatalf("share token after revoke = %v, want ErrShareNotFound", err)
+	}
+
+	if err := svc.RevokeShare(ctx, 999); err != ErrNotFound {
+		t.Fatalf("revoke unknown recap = %v, want ErrNotFound", err)
+	}
+
+	// Revoking again is a no-op.
+	if err := svc.RevokeShare(ctx, recapID); err != nil {
+		t.Fatalf("RevokeShare twice: %v", err)
+	}
+}
+
+func TestPublicDetailShareLifecycle(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	recapID := newFinalRecap(t, svc, sqlDB)
+
+	token, err := svc.CreateShare(ctx, recapID)
+	if err != nil {
+		t.Fatalf("CreateShare: %v", err)
+	}
+
+	detail, err := svc.PublicDetail(ctx, token)
+	if err != nil {
+		t.Fatalf("PublicDetail: %v", err)
+	}
+	if detail.Recap.ID != recapID || detail.Recap.Status != "final" {
+		t.Fatalf("public recap = %+v", detail.Recap)
+	}
+	if len(detail.Workers) != 1 || detail.Workers[0].Net != 100_000 {
+		t.Fatalf("public workers = %+v", detail.Workers)
+	}
+	if detail.PeriodStart != "2026-01-05" || detail.PeriodEnd != "2026-01-05" {
+		t.Fatalf("public period = %s..%s", detail.PeriodStart, detail.PeriodEnd)
+	}
+
+	if _, err := svc.PublicDetail(ctx, "unknown-token"); err != ErrShareNotFound {
+		t.Fatalf("unknown token = %v, want ErrShareNotFound", err)
+	}
+	if _, err := svc.PublicDetail(ctx, ""); err != ErrShareNotFound {
+		t.Fatalf("empty token = %v, want ErrShareNotFound", err)
+	}
+
+	if err := svc.Reopen(ctx, recapID); err != nil {
+		t.Fatalf("Reopen: %v", err)
+	}
+	if _, err := svc.PublicDetail(ctx, token); err != ErrShareNotFound {
+		t.Fatalf("public detail after reopen = %v, want ErrShareNotFound", err)
+	}
+}
+

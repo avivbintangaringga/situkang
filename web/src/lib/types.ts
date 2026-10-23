@@ -164,6 +164,11 @@ export type RecapDetail = {
   period_end: string
 }
 
+export type RecapShare = {
+  token: string
+  url: string
+}
+
 export type Settings = {
   working_days: number[]
   attendance_fractions: number[]

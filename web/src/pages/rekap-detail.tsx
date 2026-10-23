@@ -1,8 +1,9 @@
-import { ArrowLeft, Copy, FileSpreadsheet, Plus, Send } from 'lucide-react'
+import { ArrowLeft, Copy, FileSpreadsheet, Plus, Send, Share2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ExtraFeeSheet } from '@/components/extra-fee-sheet'
+import { RecapShareSheet } from '@/components/recap-share-sheet'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,7 @@ export function RekapDetailPage() {
     null,
   )
   const [shareNote, setShareNote] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   async function whatsappText(workerId?: number) {
     const suffix = workerId ? `?worker_id=${workerId}` : ''
@@ -200,14 +202,24 @@ export function RekapDetailPage() {
           </Button>
         </div>
       ) : (
-        <Button
-          variant="outline"
-          className="h-9 w-full"
-          onClick={() => setConfirmReopen(true)}
-          disabled={reopen.isPending}
-        >
-          {reopen.isPending ? 'Membuka…' : 'Buka kembali rekap'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-9 flex-1"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 className="size-4" aria-hidden />
+            Bagikan
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 flex-1"
+            onClick={() => setConfirmReopen(true)}
+            disabled={reopen.isPending}
+          >
+            {reopen.isPending ? 'Membuka…' : 'Buka kembali rekap'}
+          </Button>
+        </div>
       )}
 
       {workers.length === 0 && (
@@ -336,6 +348,8 @@ export function RekapDetailPage() {
           fee={feeTarget.fee}
         />
       )}
+
+      <RecapShareSheet open={shareOpen} onOpenChange={setShareOpen} recapId={recapId} />
 
       <AlertDialog open={confirmFinal} onOpenChange={setConfirmFinal}>
         <AlertDialogContent>

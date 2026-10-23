@@ -152,6 +152,9 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 
 		api.Post("/auth/login", authHandler.Login)
 
+		// Public shared recaps, reachable without a session.
+		api.Get("/public/recaps/{token}", recapHandler.PublicDetail)
+
 		api.Group(func(protected chi.Router) {
 			protected.Use(authSvc.RequireSession)
 			protected.Get("/auth/me", authHandler.Me)
@@ -189,6 +192,9 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Delete("/recaps/{id}/extra-fees/{feeId}", recapHandler.DeleteFee)
 			protected.Get("/recaps/{id}/export.xlsx", recapHandler.ExportExcel)
 			protected.Get("/recaps/{id}/whatsapp", recapHandler.WhatsApp)
+			protected.Get("/recaps/{id}/share", recapHandler.GetShare)
+			protected.Post("/recaps/{id}/share", recapHandler.CreateShare)
+			protected.Delete("/recaps/{id}/share", recapHandler.RevokeShare)
 
 			protected.Get("/projects", projectHandler.List)
 			protected.Post("/projects", projectHandler.Create)

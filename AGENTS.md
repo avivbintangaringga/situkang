@@ -192,12 +192,13 @@ Create in `migrations/0001_init.sql`. Use `STRICT` tables where possible. Enable
 - `recap_lines(id, recap_id, worker_id, worker_name, worker_role, days_quarters, gross, advances, extras, net)`
 - `recap_paid(recap_id, worker_id, paid INTEGER DEFAULT 1, PRIMARY KEY(recap_id, worker_id))` - the draft's per-worker `paid` toggle; a missing row means `paid = true`. Rows are kept after finalize (they record which workers were skipped) and survive reopen. Cascade-delete with the recap.
 - `extra_fees(id, worker_id, recap_id NULL, amount, description, created_at)` - `recap_id` is nullable because `paid = false` workers have their extras detached on finalize
+- `recap_shares(recap_id PK REFERENCES recaps ON DELETE CASCADE, token UNIQUE, created_at)` - public read-only token for a final recap; one per recap, created on demand and revocable
 
-Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`, `project_workers(worker_id)`.
+Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`, `project_workers(worker_id)`, `recap_shares(token)`.
 
 ## 7. API conventions
 
-- All routes under `/api`. JSON in/out. Chi router, middleware: request logger, recoverer, session auth (everything except `POST /api/auth/login` and `GET /api/health`, which are public).
+- All routes under `/api`. JSON in/out. Chi router, middleware: request logger, recoverer, session auth (everything except `POST /api/auth/login`, `GET /api/health`, and `GET /api/public/recaps/{token}`, which are public).
 - Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`. Session id in an `HttpOnly`, `SameSite=Lax`, `Secure` (when not localhost) cookie, 30-day expiry. Password hashed with bcrypt. Mutating routes accept only `application/json`.
 - Errors always: `{"error": "<pesan dalam Bahasa Indonesia>"}` with a correct status code (400 validation, 401, 404, 409 conflict/locked, 500).
 - Validate every input on the server. Never trust the client. Minimum rules: worker `name` required (1-100 chars), `role` required, `daily_fee >= 0`; project `name` required, `status` in `aktif|selesai|ditunda`, `end_date >= start_date` when both are set; kas bon `amount > 0`; extra fee `description` required and `amount != 0`; `quarters` in 1-4; dates must be real calendar dates in `YYYY-MM-DD`.
@@ -208,6 +209,8 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
   - `PATCH /api/recaps/{id}/extra-fees/{feeId}`, `DELETE /api/recaps/{id}/extra-fees/{feeId}`, `POST /api/recaps/{id}/extra-fees`
   - `POST /api/recaps/{id}/finalize`, `POST /api/recaps/{id}/reopen`
   - `GET /api/recaps/{id}/export.xlsx`, `GET /api/recaps/{id}/whatsapp`
+  - `GET /api/recaps/{id}/share` (existing link or 404), `POST /api/recaps/{id}/share` (create or return the same link), `DELETE /api/recaps/{id}/share` (204). Only final recaps can be shared; the response is `{token, url}` with `url` the absolute path `/bagikan/<token>`.
+  - `GET /api/public/recaps/{token}` (public, no session) returns the same `Detail` shape as `GET /api/recaps/{id}` for a still-final recap; unknown tokens and reopened recaps return 404.
 - Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error - the record simply stays.
 
 ## 8. Frontend rules

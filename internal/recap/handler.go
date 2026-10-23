@@ -87,6 +87,69 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type shareResponse struct {
+	Token string `json:"token"`
+	URL   string `json:"url"`
+}
+
+func newShareResponse(token string) shareResponse {
+	return shareResponse{Token: token, URL: "/bagikan/" + token}
+}
+
+// GetShare returns the existing public link for a final recap.
+func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
+	id, ok := recapID(w, r)
+	if !ok {
+		return
+	}
+
+	token, err := h.svc.ShareToken(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, newShareResponse(token))
+}
+
+// CreateShare creates or returns the public link for a final recap.
+func (h *Handler) CreateShare(w http.ResponseWriter, r *http.Request) {
+	id, ok := recapID(w, r)
+	if !ok {
+		return
+	}
+
+	token, err := h.svc.CreateShare(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, newShareResponse(token))
+}
+
+// RevokeShare removes the public link of a recap.
+func (h *Handler) RevokeShare(w http.ResponseWriter, r *http.Request) {
+	id, ok := recapID(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.svc.RevokeShare(r.Context(), id); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// PublicDetail returns a shared recap without requiring a session.
+func (h *Handler) PublicDetail(w http.ResponseWriter, r *http.Request) {
+	detail, err := h.svc.PublicDetail(r.Context(), chi.URLParam(r, "token"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, detail)
+}
+
 type paidRequest struct {
 	WorkerID int64 `json:"worker_id"`
 	Paid     bool  `json:"paid"`
@@ -301,6 +364,9 @@ func writeError(w http.ResponseWriter, err error) {
 			"Rekap ini sudah final. Buka kembali rekap untuk mengubahnya.")
 	case errors.Is(err, ErrNotFinal):
 		httpx.Error(w, http.StatusConflict, "Rekap ini belum final.")
+	case errors.Is(err, ErrShareNotFound):
+		httpx.Error(w, http.StatusNotFound,
+			"Tautan tidak ditemukan atau rekap sudah tidak berlaku.")
 	case errors.Is(err, ErrNotLatest):
 		httpx.Error(w, http.StatusConflict,
 			"Hanya rekap final terakhir yang dapat dibuka kembali.")

@@ -577,6 +577,42 @@ func settledAttendances(ctx context.Context, q queryer, recapID int64) ([]attRow
 	return items, nil
 }
 
+func shareToken(ctx context.Context, q queryer, recapID int64) (string, error) {
+	var token string
+	err := q.QueryRowContext(ctx, `SELECT token FROM recap_shares WHERE recap_id = ?`, recapID).Scan(&token)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func insertShare(ctx context.Context, q execer, recapID int64, token, now string) error {
+	const query = `
+		INSERT INTO recap_shares (recap_id, token, created_at) VALUES (?, ?, ?)
+		ON CONFLICT (recap_id) DO NOTHING`
+
+	if _, err := q.ExecContext(ctx, query, recapID, token, now); err != nil {
+		return fmt.Errorf("insert recap share: %w", err)
+	}
+	return nil
+}
+
+func deleteShare(ctx context.Context, q execer, recapID int64) error {
+	if _, err := q.ExecContext(ctx, `DELETE FROM recap_shares WHERE recap_id = ?`, recapID); err != nil {
+		return fmt.Errorf("delete recap share: %w", err)
+	}
+	return nil
+}
+
+func shareRecapID(ctx context.Context, q queryer, token string) (int64, error) {
+	var recapID int64
+	err := q.QueryRowContext(ctx, `SELECT recap_id FROM recap_shares WHERE token = ?`, token).Scan(&recapID)
+	if err != nil {
+		return 0, err
+	}
+	return recapID, nil
+}
+
 func settledAdvances(ctx context.Context, q queryer, recapID int64) ([]advRow, error) {
 	const query = `
 		SELECT id, worker_id, date, amount, COALESCE(note, '')
