@@ -95,7 +95,7 @@ export function DatePicker({
           </Button>
         }
       />
-      <PopoverContent className="w-auto min-w-72 p-0" align="start">
+      <PopoverContent className="w-[19rem] max-w-[calc(100vw-2rem)] p-0" align="start">
         <Calendar
           mode="single"
           selected={selected}
@@ -104,7 +104,7 @@ export function DatePicker({
             onChange(format(date, 'yyyy-MM-dd'))
             setOpen(false)
           }}
-          className="p-3 [--cell-size:--spacing(9)]"
+          className="w-full p-3 [--cell-size:--spacing(9)]"
           locale={localeId}
           weekStartsOn={1}
           captionLayout="dropdown"
