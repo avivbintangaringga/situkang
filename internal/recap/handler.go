@@ -93,7 +93,7 @@ type shareResponse struct {
 }
 
 func newShareResponse(token string) shareResponse {
-	return shareResponse{Token: token, URL: "/bagikan/" + token}
+	return shareResponse{Token: token, URL: "/share/" + token}
 }
 
 // GetShare returns the existing public link for a final recap.

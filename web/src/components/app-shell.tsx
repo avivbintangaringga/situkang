@@ -17,10 +17,10 @@ type NavItem = {
 // Absensi, Rekap, Proyek, and Pekerja make up the five-item navigation.
 const navItems: NavItem[] = [
   { to: '/', label: 'Beranda', icon: Home, end: true },
-  { to: '/absensi', label: 'Absensi', icon: ClipboardCheck },
-  { to: '/rekap', label: 'Rekap', icon: Receipt },
-  { to: '/proyek', label: 'Proyek', icon: Building2 },
-  { to: '/pekerja', label: 'Pekerja', icon: Users },
+  { to: '/attendance', label: 'Absensi', icon: ClipboardCheck },
+  { to: '/recaps', label: 'Rekap', icon: Receipt },
+  { to: '/projects', label: 'Proyek', icon: Building2 },
+  { to: '/workers', label: 'Pekerja', icon: Users },
 ]
 
 function navLinkClass(compact: boolean) {
@@ -43,7 +43,7 @@ export function AppShell() {
 
   function onLogout() {
     logout.mutate(undefined, {
-      onSettled: () => navigate('/masuk', { replace: true }),
+      onSettled: () => navigate('/login', { replace: true }),
     })
   }
 
@@ -82,7 +82,7 @@ export function AppShell() {
                 variant="ghost"
                 className="size-9 p-0"
                 aria-label="Pengaturan"
-                render={<Link to="/pengaturan" />}
+                render={<Link to="/settings" />}
               >
                 <Settings className="size-5" aria-hidden />
               </Button>

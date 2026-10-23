@@ -37,7 +37,7 @@ function currentMonth(): string {
   return format(new Date(), 'yyyy-MM')
 }
 
-export function ProyekPage() {
+export function ProjectsPage() {
   const [month, setMonth] = useState(currentMonth)
   const projects = useProjects()
   const timeline = useProjectTimeline(month)
@@ -201,7 +201,7 @@ export function ProyekPage() {
               return (
                 <li key={project.id}>
                   <Link
-                    to={`/proyek/${project.id}`}
+                    to={`/projects/${project.id}`}
                     className="bg-card hover:bg-muted/50 flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors"
                   >
                     <div className="min-w-0 space-y-1">

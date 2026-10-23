@@ -38,7 +38,7 @@ const modes: { value: RecapMode; label: string; description: string }[] = [
   },
 ]
 
-export function RekapPage() {
+export function RecapsPage() {
   const recaps = useRecaps()
   const navigate = useNavigate()
 
@@ -58,7 +58,7 @@ export function RekapPage() {
       {
         onSuccess: (recap) => {
           setOpen(false)
-          navigate(`/rekap/${recap.id}`)
+          navigate(`/recaps/${recap.id}`)
         },
       },
     )
@@ -121,7 +121,7 @@ export function RekapPage() {
             <li key={recap.id}>
               <button
                 type="button"
-                onClick={() => navigate(`/rekap/${recap.id}`)}
+                onClick={() => navigate(`/recaps/${recap.id}`)}
                 className="hover:bg-muted/50 flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left"
               >
                 <div className="min-w-0 space-y-1">

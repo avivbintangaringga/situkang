@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  * Public read-only recap page. It lives outside the auth guard and the app
  * shell so a shared link can be opened by anyone.
  */
-export function BagikanPage() {
+export function SharePage() {
   const params = useParams()
   const token = params.token ?? ''
   const { data, isPending, isError, refetch } = usePublicRecap(token)

@@ -29,7 +29,7 @@ import { formatDate, formatDays, formatRupiah } from '@/lib/format'
 import type { RecapExtraFee } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-export function RekapDetailPage() {
+export function RecapDetailPage() {
   const params = useParams()
   const recapId = Number(params.id)
   const navigate = useNavigate()
@@ -99,7 +99,7 @@ export function RekapDetailPage() {
 
   return (
     <div className="space-y-4 pb-4">
-      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/rekap" />}>
+      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/recaps" />}>
         <ArrowLeft className="size-4" aria-hidden />
         Rekap
       </Button>
@@ -412,7 +412,7 @@ export function RekapDetailPage() {
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                remove.mutate(undefined, { onSuccess: () => navigate('/rekap') })
+                remove.mutate(undefined, { onSuccess: () => navigate('/recaps') })
               }
             >
               Hapus

@@ -228,7 +228,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
                 type="button"
                 variant="outline"
                 className="h-9 w-full"
-                render={<Link to={`/pekerja/${worker.id}`} />}
+                render={<Link to={`/workers/${worker.id}`} />}
               >
                 Lihat detail dan kas bon
               </Button>

@@ -81,7 +81,7 @@ export function ProjectDetailPage() {
   if (project.isError) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/proyek" />}>
+        <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/projects" />}>
           <ArrowLeft className="size-4" aria-hidden />
           Proyek
         </Button>
@@ -109,7 +109,7 @@ export function ProjectDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/proyek" />}>
+      <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/projects" />}>
         <ArrowLeft className="size-4" aria-hidden />
         Proyek
       </Button>
@@ -290,7 +290,7 @@ export function ProjectDetailPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         project={data}
-        onDeleted={() => navigate('/proyek')}
+        onDeleted={() => navigate('/projects')}
       />
     </div>
   )

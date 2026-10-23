@@ -52,7 +52,7 @@ const fractionOptions = {
   },
 } as const
 
-export function AbsensiPage() {
+export function AttendancePage() {
   const [date, setDate] = useState<string | null>(null)
   const { data, isPending, isError, error, refetch } = useAttendanceDay(date)
   const { mutate: saveDay, isPending: saving, error: saveError } = useSaveDay()
@@ -348,7 +348,7 @@ export function AbsensiPage() {
           <p className="text-muted-foreground mt-1 text-sm">
             Tambahkan pekerja dulu sebelum mencatat absensi.
           </p>
-          <Button className="mt-4 h-9 px-5" render={<Link to="/pekerja" />}>
+          <Button className="mt-4 h-9 px-5" render={<Link to="/workers" />}>
             Tambah pekerja
           </Button>
         </div>
@@ -374,7 +374,7 @@ export function AbsensiPage() {
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-medium">{formatRupiah(row.preview)}</p>
                   <Link
-                    to={`/pekerja/${row.worker_id}`}
+                    to={`/workers/${row.worker_id}`}
                     className="text-muted-foreground text-xs underline underline-offset-2"
                   >
                     Lihat minggu

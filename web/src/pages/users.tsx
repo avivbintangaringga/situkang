@@ -10,7 +10,7 @@ import { useMe } from '@/hooks/use-auth'
 import { useUsers } from '@/hooks/use-users'
 import { formatTimestampDate } from '@/lib/format'
 
-export function PenggunaPage() {
+export function UsersPage() {
   const users = useUsers()
   const { data: me } = useMe()
   const [formOpen, setFormOpen] = useState(false)
@@ -18,7 +18,7 @@ export function PenggunaPage() {
   return (
     <div className="space-y-4">
       <Link
-        to="/pengaturan"
+        to="/settings"
         className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-1 text-sm"
       >
         <ArrowLeft className="size-4" aria-hidden />

@@ -29,7 +29,7 @@ export function RequireAuth() {
   }
 
   if (!data) {
-    return <Navigate to="/masuk" replace state={{ from: location.pathname }} />
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
   return <Outlet />

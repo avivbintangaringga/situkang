@@ -87,7 +87,7 @@ export function WorkerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/absensi" />}>
+      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/attendance" />}>
         <ArrowLeft className="size-4" aria-hidden />
         Absensi
       </Button>

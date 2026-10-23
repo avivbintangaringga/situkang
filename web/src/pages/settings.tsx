@@ -20,7 +20,7 @@ const weekdays = [
   { value: 7, label: 'Minggu' },
 ]
 
-export function PengaturanPage() {
+export function SettingsPage() {
   const settings = useSettings()
   const update = useUpdateSettings()
   const [selection, setSelection] = useState<number[] | null>(null)
@@ -70,7 +70,7 @@ export function PengaturanPage() {
       <AccountSettings />
 
       <Link
-        to="/pengguna"
+        to="/users"
         className="hover:bg-muted/50 flex min-h-14 items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
       >
         <span className="flex min-w-0 items-center gap-3">

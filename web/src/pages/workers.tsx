@@ -12,7 +12,7 @@ import { useWorkers } from '@/hooks/use-workers'
 import { formatRupiah } from '@/lib/format'
 import type { Worker } from '@/lib/types'
 
-export function PekerjaPage() {
+export function WorkersPage() {
   const [search, setSearch] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const deferredSearch = useDeferredValue(search)

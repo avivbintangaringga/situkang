@@ -2,36 +2,36 @@ import { Navigate, Route, Routes } from 'react-router'
 
 import { AppShell } from '@/components/app-shell'
 import { RequireAuth } from '@/components/require-auth'
-import { AbsensiPage } from '@/pages/absensi'
-import { BagikanPage } from '@/pages/bagikan'
-import { BerandaPage } from '@/pages/beranda'
+import { AttendancePage } from '@/pages/attendance'
+import { SharePage } from '@/pages/share'
+import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login'
-import { PekerjaPage } from '@/pages/pekerja'
-import { PengaturanPage } from '@/pages/pengaturan'
-import { PenggunaPage } from '@/pages/pengguna'
+import { WorkersPage } from '@/pages/workers'
+import { SettingsPage } from '@/pages/settings'
+import { UsersPage } from '@/pages/users'
 import { ProjectDetailPage } from '@/pages/project-detail'
-import { ProyekPage } from '@/pages/proyek'
-import { RekapDetailPage } from '@/pages/rekap-detail'
-import { RekapPage } from '@/pages/rekap'
+import { ProjectsPage } from '@/pages/projects'
+import { RecapDetailPage } from '@/pages/recap-detail'
+import { RecapsPage } from '@/pages/recaps'
 import { WorkerDetailPage } from '@/pages/worker-detail'
 
 function App() {
   return (
     <Routes>
-      <Route path="/masuk" element={<LoginPage />} />
-      <Route path="/bagikan/:token" element={<BagikanPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/share/:token" element={<SharePage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<BerandaPage />} />
-          <Route path="/absensi" element={<AbsensiPage />} />
-          <Route path="/pekerja" element={<PekerjaPage />} />
-          <Route path="/pekerja/:id" element={<WorkerDetailPage />} />
-          <Route path="/proyek" element={<ProyekPage />} />
-          <Route path="/proyek/:id" element={<ProjectDetailPage />} />
-          <Route path="/pengaturan" element={<PengaturanPage />} />
-          <Route path="/pengguna" element={<PenggunaPage />} />
-          <Route path="/rekap" element={<RekapPage />} />
-          <Route path="/rekap/:id" element={<RekapDetailPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/workers" element={<WorkersPage />} />
+          <Route path="/workers/:id" element={<WorkerDetailPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/recaps" element={<RecapsPage />} />
+          <Route path="/recaps/:id" element={<RecapDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

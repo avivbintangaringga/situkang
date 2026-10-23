@@ -7,7 +7,7 @@ import { useMe } from '@/hooks/use-auth'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { formatDays, formatRupiah } from '@/lib/format'
 
-export function BerandaPage() {
+export function HomePage() {
   const { data: user } = useMe()
   const dashboard = useDashboard()
 
@@ -23,11 +23,11 @@ export function BerandaPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button className="h-9 flex-1" render={<Link to="/absensi" />}>
+        <Button className="h-9 flex-1" render={<Link to="/attendance" />}>
           <ClipboardCheck className="size-4" aria-hidden />
           Catat absensi
         </Button>
-        <Button variant="outline" className="h-9 flex-1" render={<Link to="/rekap" />}>
+        <Button variant="outline" className="h-9 flex-1" render={<Link to="/recaps" />}>
           <Receipt className="size-4" aria-hidden />
           Rekap gaji
         </Button>
@@ -42,7 +42,7 @@ export function BerandaPage() {
           <Button
             variant="outline"
             className="mt-3 h-9 px-4"
-            render={<Link to={`/rekap/${dashboard.data.draft_recap_id}`} />}
+            render={<Link to={`/recaps/${dashboard.data.draft_recap_id}`} />}
           >
             Buka draft rekap
           </Button>
