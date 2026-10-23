@@ -50,7 +50,8 @@ export function AppShell() {
   return (
     <div className="min-h-dvh md:flex">
       <aside className="bg-background hidden md:flex md:w-56 md:shrink-0 md:flex-col md:border-r">
-        <div className="flex h-14 items-center px-4">
+        <div className="flex h-14 items-center gap-2 px-4">
+          <img src="/logo.svg" alt="" className="size-7" />
           <span className="text-lg font-semibold">SiTukang</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-2">
@@ -71,7 +72,10 @@ export function AppShell() {
       <div className="flex min-h-dvh flex-1 flex-col">
         <header className="bg-background/90 sticky top-0 z-30 border-b shadow-sm backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-3 px-4">
-            <span className="text-lg font-semibold md:hidden">SiTukang</span>
+            <span className="flex min-w-0 items-center gap-2 md:hidden">
+              <img src="/logo.svg" alt="" className="size-7" />
+              <span className="truncate text-lg font-semibold">SiTukang</span>
+            </span>
             <div className="hidden md:block" />
             <div className="flex min-w-0 items-center gap-2">
               <span className="text-muted-foreground hidden max-w-[10rem] truncate text-xs sm:inline">

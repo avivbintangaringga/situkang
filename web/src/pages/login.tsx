@@ -61,7 +61,8 @@ export function LoginPage() {
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-1 text-center">
+        <div className="space-y-2 text-center">
+          <img src="/logo.svg" alt="" className="mx-auto size-14" />
           <h1 className="text-2xl font-semibold tracking-tight">SiTukang</h1>
           <p className="text-muted-foreground text-sm">Sistem Informasi Tukang</p>
         </div>
