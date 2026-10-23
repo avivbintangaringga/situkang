@@ -1,10 +1,11 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { Banknote, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
+import { Banknote, Check, ChevronDown, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
 import { DatePicker } from '@/components/date-picker'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -59,6 +60,7 @@ export function AbsensiPage() {
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('semua')
+  const [roleOpen, setRoleOpen] = useState(false)
   const deferredSearch = useDeferredValue(search)
   const [draft, setDraft] = useState<Record<number, number>>({})
   const [dirty, setDirty] = useState(false)
@@ -222,8 +224,8 @@ export function AbsensiPage() {
       </div>
 
       {workers.length > 0 && (
-        <div className="space-y-2">
-          <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search
               className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
               aria-hidden
@@ -238,27 +240,43 @@ export function AbsensiPage() {
           </div>
 
           {roles.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              {['semua', ...roles].map((role) => {
-                const active = roleFilter === role
-                return (
-                  <button
-                    key={role}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setRoleFilter(role)}
-                    className={cn(
-                      'h-8 rounded-full border px-3 text-xs font-medium transition-colors',
-                      active
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'text-muted-foreground hover:bg-muted',
-                    )}
+            <Popover open={roleOpen} onOpenChange={setRoleOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    className="h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs"
+                    aria-label="Filter peran"
                   >
-                    {role === 'semua' ? 'Semua peran' : role}
-                  </button>
-                )
-              })}
-            </div>
+                    <span className="max-w-24 truncate">
+                      {roleFilter === 'semua' ? 'Semua peran' : roleFilter}
+                    </span>
+                    <ChevronDown className="size-3.5" aria-hidden />
+                  </Button>
+                }
+              />
+              <PopoverContent align="end" className="w-52 p-1">
+                {['semua', ...roles].map((role) => {
+                  const active = roleFilter === role
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => {
+                        setRoleFilter(role)
+                        setRoleOpen(false)
+                      }}
+                      className="hover:bg-muted flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm"
+                    >
+                      <span className="truncate">
+                        {role === 'semua' ? 'Semua peran' : role}
+                      </span>
+                      {active && <Check className="size-4 shrink-0" aria-hidden />}
+                    </button>
+                  )
+                })}
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       )}
