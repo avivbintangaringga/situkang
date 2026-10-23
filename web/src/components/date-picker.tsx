@@ -96,33 +96,6 @@ export function DatePicker({
         }
       />
       <PopoverContent className="w-auto min-w-72 p-0" align="start">
-        <div className="space-y-1.5 border-b p-3">
-          <Input
-            className="h-9"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="YYYY-MM-DD atau DD/MM/YYYY"
-            aria-label="Ketik tanggal"
-            aria-invalid={invalid}
-            value={manual}
-            onChange={(event) => {
-              setManual(event.target.value)
-              setInvalid(false)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                applyManual()
-              }
-            }}
-          />
-          {invalid ? (
-            <p className="text-destructive px-1 text-xs">Format tanggal tidak valid.</p>
-          ) : (
-            <p className="text-muted-foreground px-1 text-xs">Tekan Enter untuk memakai tanggal.</p>
-          )}
-        </div>
-
         <Calendar
           mode="single"
           selected={selected}
@@ -141,8 +114,39 @@ export function DatePicker({
           endMonth={new Date(maxYear, 11)}
         />
 
-        {value && onClear && (
-          <div className="border-t p-3">
+        <div className="space-y-2 border-t p-3">
+          <div className="flex items-center gap-2">
+            <Input
+              className="h-9 min-w-0 flex-1"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="YYYY-MM-DD"
+              aria-label="Ketik tanggal"
+              aria-invalid={invalid}
+              value={manual}
+              onChange={(event) => {
+                setManual(event.target.value)
+                setInvalid(false)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  applyManual()
+                }
+              }}
+            />
+            <Button
+              type="button"
+              className="h-9 shrink-0 rounded-full px-4 text-xs"
+              onClick={applyManual}
+            >
+              Pakai
+            </Button>
+          </div>
+          {invalid && (
+            <p className="text-destructive px-1 text-xs">Format tanggal tidak valid.</p>
+          )}
+          {value && onClear && (
             <Button
               type="button"
               variant="ghost"
@@ -154,8 +158,8 @@ export function DatePicker({
             >
               Kosongkan tanggal
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   )
