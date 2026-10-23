@@ -23,11 +23,11 @@ export function BerandaPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button className="h-11 flex-1" render={<Link to="/absensi" />}>
+        <Button className="h-9 flex-1" render={<Link to="/absensi" />}>
           <ClipboardCheck className="size-4" aria-hidden />
           Catat absensi
         </Button>
-        <Button variant="outline" className="h-11 flex-1" render={<Link to="/rekap" />}>
+        <Button variant="outline" className="h-9 flex-1" render={<Link to="/rekap" />}>
           <Receipt className="size-4" aria-hidden />
           Rekap gaji
         </Button>
@@ -41,7 +41,7 @@ export function BerandaPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-3 h-11 px-4"
+            className="mt-3 h-9 px-4"
             render={<Link to={`/rekap/${dashboard.data.draft_recap_id}`} />}
           >
             Buka draft rekap
@@ -66,7 +66,7 @@ export function BerandaPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void dashboard.refetch()}
           >
             Coba lagi

@@ -139,7 +139,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
             <Label htmlFor="worker-name">Nama</Label>
             <Input
               id="worker-name"
-              className="h-11"
+              className="h-9"
               autoComplete="off"
               aria-invalid={Boolean(form.formState.errors.name)}
               {...form.register('name')}
@@ -155,7 +155,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
             <Label htmlFor="worker-role">Peran</Label>
             <Input
               id="worker-role"
-              className="h-11"
+              className="h-9"
               placeholder="Tukang batu, kenek, mandor…"
               autoComplete="off"
               aria-invalid={Boolean(form.formState.errors.role)}
@@ -176,7 +176,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
               </span>
               <Input
                 id="worker-fee"
-                className="h-11 pl-9"
+                className="h-9 pl-9"
                 inputMode="numeric"
                 autoComplete="off"
                 value={feeValue}
@@ -219,7 +219,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
           )}
 
           <SheetFooter className="px-0">
-            <Button type="submit" className="h-11 w-full" disabled={pending}>
+            <Button type="submit" className="h-9 w-full" disabled={pending}>
               {pending ? 'Menyimpan…' : 'Simpan'}
             </Button>
 
@@ -227,7 +227,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full"
+                className="h-9 w-full"
                 render={<Link to={`/pekerja/${worker.id}`} />}
               >
                 Lihat detail dan kas bon
@@ -238,7 +238,7 @@ export function WorkerFormSheet({ open, onOpenChange, worker }: Props) {
               <Button
                 type="button"
                 variant="destructive"
-                className="h-11 w-full"
+                className="h-9 w-full"
                 onClick={() => setConfirmDelete(true)}
               >
                 Nonaktifkan pekerja

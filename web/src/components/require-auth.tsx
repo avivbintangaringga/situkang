@@ -21,7 +21,7 @@ export function RequireAuth() {
         <p className="text-sm">
           {error instanceof Error ? error.message : 'Tidak dapat menghubungi server.'}
         </p>
-        <Button variant="outline" className="h-11 px-6" onClick={() => void refetch()}>
+        <Button variant="outline" className="h-9 px-6" onClick={() => void refetch()}>
           Coba lagi
         </Button>
       </div>

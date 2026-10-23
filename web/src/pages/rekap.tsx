@@ -2,8 +2,8 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -73,7 +73,7 @@ export function RekapPage() {
             Rekap gaji mingguan tukang.
           </p>
         </div>
-        <Button className="h-11 shrink-0 px-3" onClick={() => setOpen(true)}>
+        <Button className="h-9 shrink-0 px-3" onClick={() => setOpen(true)}>
           <Plus className="size-4" aria-hidden />
           Buat
         </Button>
@@ -95,7 +95,7 @@ export function RekapPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void recaps.refetch()}
           >
             Coba lagi
@@ -109,7 +109,7 @@ export function RekapPage() {
           <p className="text-muted-foreground mt-1 text-sm">
             Buat rekap dari absensi dan kas bon yang belum dibayar.
           </p>
-          <Button className="mt-4 h-11 px-5" onClick={() => setOpen(true)}>
+          <Button className="mt-4 h-9 px-5" onClick={() => setOpen(true)}>
             Buat rekap
           </Button>
         </div>
@@ -181,22 +181,20 @@ export function RekapPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="recap-start">Mulai</Label>
-                  <Input
+                  <DatePicker
                     id="recap-start"
-                    type="date"
-                    className="h-11"
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={setStartDate}
+                    placeholder="Mulai"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="recap-end">Selesai</Label>
-                  <Input
+                  <DatePicker
                     id="recap-end"
-                    type="date"
-                    className="h-11"
                     value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
+                    onChange={setEndDate}
+                    placeholder="Selesai"
                   />
                 </div>
               </div>
@@ -212,7 +210,7 @@ export function RekapPage() {
 
             <SheetFooter className="px-0">
               <Button
-                className="h-11 w-full"
+                className="h-9 w-full"
                 onClick={submit}
                 disabled={
                   create.isPending ||

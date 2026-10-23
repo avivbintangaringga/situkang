@@ -77,7 +77,7 @@ export function LoginPage() {
                 <Label htmlFor="username">Nama pengguna</Label>
                 <Input
                   id="username"
-                  className="h-11"
+                  className="h-9"
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -96,7 +96,7 @@ export function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  className="h-11"
+                  className="h-9"
                   autoComplete="current-password"
                   aria-invalid={Boolean(form.formState.errors.password)}
                   {...form.register('password')}
@@ -116,7 +116,7 @@ export function LoginPage() {
             </CardContent>
 
             <CardFooter className="pt-4">
-              <Button type="submit" className="h-11 w-full" disabled={login.isPending}>
+              <Button type="submit" className="h-9 w-full" disabled={login.isPending}>
                 {login.isPending ? 'Memproses…' : 'Masuk'}
               </Button>
             </CardFooter>

@@ -1,11 +1,11 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { Banknote, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
+import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAttendanceDay, useSaveDay } from '@/hooks/use-attendance'
 import { useSettings } from '@/hooks/use-settings'
@@ -63,14 +63,20 @@ export function AbsensiPage() {
   )
 
   const currentDate = data?.date ?? date ?? ''
+  const syncedDate = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!data || dirty) return
-    // oxlint-disable-next-line react/set-state-in-effect -- sync the editable draft with server data
+    if (!data) return
+    // Only load the draft when a different day arrives. A save triggers a
+    // background refresh of the same day, and resetting here would briefly
+    // flash the previous value back.
+    if (syncedDate.current === data.date) return
+    syncedDate.current = data.date
+    // oxlint-disable-next-line react/set-state-in-effect -- load the day into the editable draft
     setDraft(
       Object.fromEntries(data.workers.map((worker) => [worker.worker_id, worker.quarters])),
     )
-  }, [data, dirty])
+  }, [data])
 
   useEffect(() => {
     if (!dirty || !currentDate) return
@@ -150,26 +156,24 @@ export function AbsensiPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="size-11 shrink-0 p-0"
+            className="size-9 shrink-0 p-0"
             onClick={() => shiftDate(-1)}
             disabled={!currentDate || saving}
             aria-label="Hari sebelumnya"
           >
             <ChevronLeft className="size-5" aria-hidden />
           </Button>
-          <Input
-            type="date"
-            className="h-11 flex-1"
+          <DatePicker
             value={currentDate}
-            onChange={(event) => {
+            onChange={(value) => {
               setDirty(false)
-              setDate(event.target.value || null)
+              setDate(value)
             }}
-            aria-label="Tanggal absensi"
+            className="flex-1"
           />
           <Button
             variant="outline"
-            className="size-11 shrink-0 p-0"
+            className="size-9 shrink-0 p-0"
             onClick={() => shiftDate(1)}
             disabled={!currentDate || saving}
             aria-label="Hari berikutnya"
@@ -234,7 +238,7 @@ export function AbsensiPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void refetch()}
           >
             Coba lagi
@@ -248,7 +252,7 @@ export function AbsensiPage() {
           <p className="text-muted-foreground mt-1 text-sm">
             Tambahkan pekerja dulu sebelum mencatat absensi.
           </p>
-          <Button className="mt-4 h-11 px-5" render={<Link to="/pekerja" />}>
+          <Button className="mt-4 h-9 px-5" render={<Link to="/pekerja" />}>
             Tambah pekerja
           </Button>
         </div>
@@ -257,7 +261,7 @@ export function AbsensiPage() {
       {!isPending && !isError && rows.length > 0 && (
         <ul className="space-y-2">
           {rows.map((row) => (
-            <li key={row.worker_id} className="space-y-3 rounded-xl border p-3">
+            <li key={row.worker_id} className="space-y-2.5 rounded-xl border p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -285,14 +289,7 @@ export function AbsensiPage() {
               <div
                 role="group"
                 aria-label={`Absensi ${row.name}`}
-                className="grid gap-1"
-                style={{
-                  gridTemplateColumns: `repeat(${
-                    quarterOptions.includes(row.quarters)
-                      ? quarterOptions.length
-                      : quarterOptions.length + 1
-                  }, minmax(0, 1fr))`,
-                }}
+                className="bg-muted/60 flex gap-0.5 rounded-full p-0.5"
               >
                 {(quarterOptions.includes(row.quarters)
                   ? quarterOptions
@@ -309,9 +306,11 @@ export function AbsensiPage() {
                       aria-label={option.aria}
                       onClick={() => setQuarters(row.worker_id, value)}
                       className={cn(
-                        'h-11 rounded-lg border font-medium transition-colors disabled:opacity-50',
+                        'h-9 flex-1 rounded-full font-medium transition-colors disabled:opacity-50',
                         option.text,
-                        active ? option.active : 'hover:bg-muted',
+                        active
+                          ? cn(option.active, 'shadow-sm')
+                          : 'text-muted-foreground hover:bg-background/80',
                       )}
                     >
                       {option.label}
@@ -323,13 +322,13 @@ export function AbsensiPage() {
               {row.quarters > 0 && (
                 <Button
                   variant="outline"
-                  className="h-11 w-full px-3 text-xs"
+                  className="h-9 rounded-full px-4 text-xs"
                   onClick={() => {
                     setAdvanceTarget({ workerId: row.worker_id, name: row.name })
                   }}
                   disabled={row.locked || !currentDate}
                 >
-                  <Banknote className="size-4" aria-hidden />
+                  <Banknote className="size-3.5" aria-hidden />
                   Kas bon
                 </Button>
               )}

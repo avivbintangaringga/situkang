@@ -51,7 +51,7 @@ export function WorkerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/absensi" />}>
+      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/absensi" />}>
         <ArrowLeft className="size-4" aria-hidden />
         Absensi
       </Button>
@@ -65,7 +65,7 @@ export function WorkerDetailPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void refetch()}
           >
             Coba lagi
@@ -92,7 +92,7 @@ export function WorkerDetailPage() {
                 <p className="text-sm">Tidak dapat memuat proyek.</p>
                 <Button
                   variant="outline"
-                  className="mt-4 h-11 px-5"
+                  className="mt-4 h-9 px-5"
                   onClick={() => void projects.refetch()}
                 >
                   Coba lagi
@@ -172,7 +172,7 @@ export function WorkerDetailPage() {
                   Total {formatRupiah(advancesTotal)}
                 </p>
               </div>
-              <Button className="h-11 px-3" onClick={() => openAdvance(null)}>
+              <Button className="h-9 px-3" onClick={() => openAdvance(null)}>
                 <Plus className="size-4" aria-hidden />
                 Tambah
               </Button>

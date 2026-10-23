@@ -84,7 +84,7 @@ export function RekapDetailPage() {
         <p className="text-sm">
           {error instanceof Error ? error.message : 'Tidak dapat memuat rekap.'}
         </p>
-        <Button variant="outline" className="mt-4 h-11 px-5" onClick={() => void refetch()}>
+        <Button variant="outline" className="mt-4 h-9 px-5" onClick={() => void refetch()}>
           Coba lagi
         </Button>
       </div>
@@ -97,7 +97,7 @@ export function RekapDetailPage() {
 
   return (
     <div className="space-y-4 pb-4">
-      <Button variant="ghost" className="-ml-2 h-11 px-2" render={<Link to="/rekap" />}>
+      <Button variant="ghost" className="-ml-2 h-9 px-2" render={<Link to="/rekap" />}>
         <ArrowLeft className="size-4" aria-hidden />
         Rekap
       </Button>
@@ -145,7 +145,7 @@ export function RekapDetailPage() {
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
-          className="h-11 flex-1"
+          className="h-9 flex-1"
           render={<a href={`/api/recaps/${recapId}/export.xlsx`} />}
         >
           <FileSpreadsheet className="size-4" aria-hidden />
@@ -153,7 +153,7 @@ export function RekapDetailPage() {
         </Button>
         <Button
           variant="outline"
-          className="h-11 flex-1"
+          className="h-9 flex-1"
           onClick={() => void copyText()}
         >
           <Copy className="size-4" aria-hidden />
@@ -161,7 +161,7 @@ export function RekapDetailPage() {
         </Button>
         <Button
           variant="outline"
-          className="h-11 flex-1"
+          className="h-9 flex-1"
           onClick={() => void sendWhatsApp()}
         >
           <Send className="size-4" aria-hidden />
@@ -184,7 +184,7 @@ export function RekapDetailPage() {
       {isDraft ? (
         <div className="flex gap-2">
           <Button
-            className="h-11 flex-1"
+            className="h-9 flex-1"
             onClick={() => setConfirmFinal(true)}
             disabled={workers.length === 0 || finalize.isPending}
           >
@@ -192,7 +192,7 @@ export function RekapDetailPage() {
           </Button>
           <Button
             variant="destructive"
-            className="h-11 px-4"
+            className="h-9 px-4"
             onClick={() => setConfirmDelete(true)}
           >
             Hapus
@@ -201,7 +201,7 @@ export function RekapDetailPage() {
       ) : (
         <Button
           variant="outline"
-          className="h-11 w-full"
+          className="h-9 w-full"
           onClick={() => setConfirmReopen(true)}
           disabled={reopen.isPending}
         >
@@ -294,7 +294,7 @@ export function RekapDetailPage() {
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
-                  className="size-11 p-0"
+                  className="size-9 p-0"
                   aria-label={`Salin WhatsApp ${line.name}`}
                   onClick={() => void copyText(line.worker_id)}
                 >
@@ -302,7 +302,7 @@ export function RekapDetailPage() {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="size-11 p-0"
+                  className="size-9 p-0"
                   aria-label={`Kirim WhatsApp ${line.name}`}
                   onClick={() => void sendWhatsApp(line.worker_id)}
                 >
@@ -311,7 +311,7 @@ export function RekapDetailPage() {
                 {isDraft && (
                   <Button
                     variant="outline"
-                    className="h-11 px-3 text-xs"
+                    className="h-9 px-3 text-xs"
                     onClick={() => setFeeTarget({ workerId: line.worker_id })}
                   >
                     <Plus className="size-3.5" aria-hidden />

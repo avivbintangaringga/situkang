@@ -121,7 +121,7 @@ export function ProyekPage() {
             Daftar proyek dan linimasa kehadiran tukang.
           </p>
         </div>
-        <Button className="h-11 shrink-0 px-3" onClick={openCreate}>
+        <Button className="h-9 shrink-0 px-3" onClick={openCreate}>
           <Plus className="size-4" aria-hidden />
           Tambah
         </Button>
@@ -133,7 +133,7 @@ export function ProyekPage() {
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
-              className="size-11 p-0"
+              className="size-9 p-0"
               onClick={() => shiftMonth(-1)}
               aria-label="Bulan sebelumnya"
             >
@@ -144,7 +144,7 @@ export function ProyekPage() {
             </span>
             <Button
               variant="outline"
-              className="size-11 p-0"
+              className="size-9 p-0"
               onClick={() => shiftMonth(1)}
               aria-label="Bulan berikutnya"
             >
@@ -164,7 +164,7 @@ export function ProyekPage() {
             </p>
             <Button
               variant="outline"
-              className="mt-4 h-11 px-5"
+              className="mt-4 h-9 px-5"
               onClick={() => void timeline.refetch()}
             >
               Coba lagi
@@ -240,7 +240,7 @@ export function ProyekPage() {
             </p>
             <Button
               variant="outline"
-              className="mt-4 h-11 px-5"
+              className="mt-4 h-9 px-5"
               onClick={() => void projects.refetch()}
             >
               Coba lagi
@@ -254,7 +254,7 @@ export function ProyekPage() {
             <p className="text-muted-foreground mt-1 text-sm">
               Tambahkan proyek untuk menugaskan tukang ke tempat kerja.
             </p>
-            <Button className="mt-4 h-11 px-5" onClick={openCreate}>
+            <Button className="mt-4 h-9 px-5" onClick={openCreate}>
               Tambah proyek
             </Button>
           </div>

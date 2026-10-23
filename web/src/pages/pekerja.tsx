@@ -44,7 +44,7 @@ export function PekerjaPage() {
             Daftar tukang beserta upah hariannya.
           </p>
         </div>
-        <Button className="h-11 shrink-0 px-3" onClick={openCreate}>
+        <Button className="h-9 shrink-0 px-3" onClick={openCreate}>
           <Plus className="size-4" aria-hidden />
           Tambah
         </Button>
@@ -57,7 +57,7 @@ export function PekerjaPage() {
             aria-hidden
           />
           <Input
-            className="h-11 pl-9"
+            className="h-9 pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari nama atau peran…"
@@ -94,7 +94,7 @@ export function PekerjaPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void refetch()}
           >
             Coba lagi
@@ -113,7 +113,7 @@ export function PekerjaPage() {
               : 'Tambahkan tukang pertama untuk mulai mencatat absensi.'}
           </p>
           {!search && (
-            <Button className="mt-4 h-11 px-5" onClick={openCreate}>
+            <Button className="mt-4 h-9 px-5" onClick={openCreate}>
               Tambah pekerja
             </Button>
           )}

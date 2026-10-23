@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -166,7 +167,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
             <Label htmlFor="project-name">Nama</Label>
             <Input
               id="project-name"
-              className="h-11"
+              className="h-9"
               autoComplete="off"
               aria-invalid={Boolean(form.formState.errors.name)}
               {...form.register('name')}
@@ -192,7 +193,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
                       form.setValue('status', option.value, { shouldValidate: true })
                     }
                     className={cn(
-                      'h-11 rounded-lg border text-sm font-medium transition-colors',
+                      'h-9 rounded-lg border text-sm font-medium transition-colors',
                       active ? 'border-primary bg-primary/5' : 'hover:bg-muted',
                     )}
                   >
@@ -206,21 +207,26 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="project-start">Mulai</Label>
-              <Input
+              <DatePicker
                 id="project-start"
-                type="date"
-                className="h-11 min-w-0"
-                {...form.register('start_date')}
+                value={form.watch('start_date')}
+                onChange={(value) =>
+                  form.setValue('start_date', value, { shouldValidate: true })
+                }
+                onClear={() => form.setValue('start_date', '')}
+                placeholder="Mulai"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="project-end">Selesai</Label>
-              <Input
+              <DatePicker
                 id="project-end"
-                type="date"
-                className="h-11 min-w-0"
-                aria-invalid={Boolean(form.formState.errors.end_date)}
-                {...form.register('end_date')}
+                value={form.watch('end_date')}
+                onChange={(value) =>
+                  form.setValue('end_date', value, { shouldValidate: true })
+                }
+                onClear={() => form.setValue('end_date', '')}
+                placeholder="Selesai"
               />
             </div>
           </div>
@@ -246,7 +252,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-2 h-11 px-4"
+                  className="mt-2 h-9 px-4"
                   onClick={() => void workers.refetch()}
                 >
                   Coba lagi
@@ -274,7 +280,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
                         aria-pressed={active}
                         onClick={() => toggleWorker(worker.id)}
                         className={cn(
-                          'flex h-11 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm transition-colors',
+                          'flex h-9 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm transition-colors',
                           active ? 'border-primary bg-primary/5' : 'hover:bg-muted',
                         )}
                       >
@@ -325,7 +331,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
           )}
 
           <SheetFooter className="px-0">
-            <Button type="submit" className="h-11 w-full" disabled={pending}>
+            <Button type="submit" className="h-9 w-full" disabled={pending}>
               {pending ? 'Menyimpan…' : 'Simpan'}
             </Button>
 
@@ -333,7 +339,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
               <Button
                 type="button"
                 variant="destructive"
-                className="h-11 w-full"
+                className="h-9 w-full"
                 onClick={() => setConfirmDelete(true)}
               >
                 Hapus proyek

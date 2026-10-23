@@ -26,10 +26,10 @@ const navItems: NavItem[] = [
 function navLinkClass(compact: boolean) {
   return ({ isActive }: { isActive: boolean }) =>
     cn(
-      'flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors',
+      'flex items-center gap-3 rounded-full px-3 text-sm font-medium transition-colors',
       compact
         ? 'h-14 flex-1 flex-col justify-center gap-1 rounded-none text-xs'
-        : 'h-11',
+        : 'h-9',
       isActive
         ? 'bg-muted text-foreground'
         : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
@@ -80,7 +80,7 @@ export function AppShell() {
               <ThemeToggle />
               <Button
                 variant="ghost"
-                className="size-11 p-0"
+                className="size-9 p-0"
                 aria-label="Pengaturan"
                 render={<Link to="/pengaturan" />}
               >
@@ -88,7 +88,7 @@ export function AppShell() {
               </Button>
               <Button
                 variant="ghost"
-                className="h-11 px-3"
+                className="h-9 px-3"
                 onClick={onLogout}
                 disabled={logout.isPending}
               >

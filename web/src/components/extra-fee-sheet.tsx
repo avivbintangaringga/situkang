@@ -90,7 +90,7 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
                 type="button"
                 onClick={() => setKind(option)}
                 className={cn(
-                  'h-11 rounded-lg border text-sm font-medium capitalize',
+                  'h-9 rounded-lg border text-sm font-medium capitalize',
                   kind === option ? 'border-primary bg-primary/5' : 'hover:bg-muted',
                 )}
               >
@@ -107,7 +107,7 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
               </span>
               <Input
                 id="fee-amount"
-                className="h-11 pl-9"
+                className="h-9 pl-9"
                 inputMode="numeric"
                 value={formatThousands(amount)}
                 onChange={(event) => setAmount(digitsOnly(event.target.value))}
@@ -119,7 +119,7 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
             <Label htmlFor="fee-description">Keterangan</Label>
             <Input
               id="fee-description"
-              className="h-11"
+              className="h-9"
               autoComplete="off"
               placeholder="Lembur, denda, uang makan…"
               value={description}
@@ -134,13 +134,13 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
           )}
 
           <SheetFooter className="px-0">
-            <Button className="h-11 w-full" onClick={submit} disabled={pending || invalid}>
+            <Button className="h-9 w-full" onClick={submit} disabled={pending || invalid}>
               {pending ? 'Menyimpan…' : 'Simpan'}
             </Button>
             {fee && (
               <Button
                 variant="destructive"
-                className="h-11 w-full"
+                className="h-9 w-full"
                 onClick={onDelete}
                 disabled={pending}
               >

@@ -10,7 +10,7 @@ export function ThemeToggle() {
   return (
     <Button
       variant="ghost"
-      className="size-11 p-0"
+      className="size-9 p-0"
       onClick={toggle}
       aria-label={dark ? 'Mode terang' : 'Mode gelap'}
       title={dark ? 'Mode terang' : 'Mode gelap'}

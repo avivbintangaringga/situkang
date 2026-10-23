@@ -75,7 +75,7 @@ export function PengaturanPage() {
           </p>
           <Button
             variant="outline"
-            className="mt-4 h-11 px-5"
+            className="mt-4 h-9 px-5"
             onClick={() => void settings.refetch()}
           >
             Coba lagi
@@ -143,7 +143,7 @@ export function PengaturanPage() {
 
       {settings.data && (
         <Button
-          className="h-11 w-full"
+          className="h-9 w-full"
           onClick={save}
           disabled={!dirty || workingDays.length === 0 || update.isPending}
         >

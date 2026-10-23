@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -124,12 +125,12 @@ export function CashAdvanceSheet({
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="advance-date">Tanggal</Label>
-            <Input
+            <DatePicker
               id="advance-date"
-              type="date"
-              className="h-11"
-              aria-invalid={Boolean(form.formState.errors.date)}
-              {...form.register('date')}
+              value={form.watch('date')}
+              onChange={(value) =>
+                form.setValue('date', value, { shouldValidate: true })
+              }
             />
             {form.formState.errors.date && (
               <p className="text-destructive text-sm">
@@ -146,7 +147,7 @@ export function CashAdvanceSheet({
               </span>
               <Input
                 id="advance-amount"
-                className="h-11 pl-9"
+                className="h-9 pl-9"
                 inputMode="numeric"
                 autoComplete="off"
                 value={formatThousands(form.watch('amount'))}
@@ -171,7 +172,7 @@ export function CashAdvanceSheet({
             <Label htmlFor="advance-note">Catatan (opsional)</Label>
             <Input
               id="advance-note"
-              className="h-11"
+              className="h-9"
               autoComplete="off"
               {...form.register('note')}
             />
@@ -193,7 +194,7 @@ export function CashAdvanceSheet({
           <SheetFooter className="px-0">
             <Button
               type="submit"
-              className="h-11 w-full"
+              className="h-9 w-full"
               disabled={pending || amount <= 0}
             >
               {pending ? 'Menyimpan…' : 'Simpan'}
@@ -203,7 +204,7 @@ export function CashAdvanceSheet({
               <Button
                 type="button"
                 variant="destructive"
-                className="h-11 w-full"
+                className="h-9 w-full"
                 onClick={() => setConfirmDelete(true)}
               >
                 Hapus kas bon
