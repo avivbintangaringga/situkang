@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -55,7 +56,10 @@ export function LoginPage() {
         : null
 
   return (
-    <main className="bg-background flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+      <div className="absolute top-2 right-2">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">SiTukang</h1>

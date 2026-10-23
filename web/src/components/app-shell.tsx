@@ -2,6 +2,7 @@ import { Building2, ClipboardCheck, Home, Receipt, Settings, Users } from 'lucid
 import type { LucideIcon } from 'lucide-react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { useLogout, useMe } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -47,7 +48,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="bg-background min-h-dvh md:flex">
+    <div className="min-h-dvh md:flex">
       <aside className="bg-background hidden md:flex md:w-56 md:shrink-0 md:flex-col md:border-r">
         <div className="flex h-14 items-center px-4">
           <span className="text-sm font-semibold">SiTukang</span>
@@ -68,7 +69,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-h-dvh flex-1 flex-col">
-        <header className="bg-background/95 sticky top-0 z-30 border-b backdrop-blur">
+        <header className="bg-background/90 sticky top-0 z-30 border-b shadow-sm backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-3 px-4">
             <span className="text-sm font-semibold md:hidden">SiTukang</span>
             <div className="hidden md:block" />
@@ -76,6 +77,7 @@ export function AppShell() {
               <span className="text-muted-foreground hidden max-w-[10rem] truncate text-xs sm:inline">
                 {user?.username}
               </span>
+              <ThemeToggle />
               <Button
                 variant="ghost"
                 className="size-11 p-0"
@@ -100,7 +102,7 @@ export function AppShell() {
           <Outlet />
         </main>
 
-        <nav className="bg-background/95 fixed inset-x-0 bottom-0 z-40 flex border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        <nav className="bg-background/95 fixed inset-x-0 bottom-0 z-40 flex border-t pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_12px_rgb(0_0_0_/_0.06)] backdrop-blur md:hidden">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
