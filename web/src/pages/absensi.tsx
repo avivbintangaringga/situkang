@@ -201,7 +201,7 @@ export function AbsensiPage() {
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex min-h-9 items-center justify-between gap-2">
           <p className="text-sm font-medium">
             {currentDate ? formatDate(currentDate) : '-'}
             {isNonWorkingDay && (
