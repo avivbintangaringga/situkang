@@ -7,6 +7,13 @@ import { MonthCalendar, type CalendarMarker } from '@/components/month-calendar'
 import { ProjectFormSheet } from '@/components/project-form-sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProject, useProjectCalendar } from '@/hooks/use-projects'
 import { useWorkers } from '@/hooks/use-workers'
@@ -41,6 +48,7 @@ export function ProjectDetailPage() {
   const [month, setMonth] = useState(currentMonth)
   const calendar = useProjectCalendar(projectId, month)
   const [formOpen, setFormOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const workerByID = new Map((workers.data ?? []).map((worker) => [worker.id, worker]))
 
@@ -230,14 +238,58 @@ export function ProjectDetailPage() {
               onMonthChange={setMonth}
               markers={markers}
               range={{ start: data.start_date, end: data.end_date }}
+              onSelectDate={setSelectedDate}
             />
             <p className="text-muted-foreground text-xs">
-              Titik adalah tukang yang ditugaskan dan hadir pada hari itu.
-              Penyorotan menunjukkan rentang tanggal proyek.
+              Ketuk tanggal untuk melihat siapa yang hadir. Titik adalah tukang
+              yang ditugaskan dan hadir pada hari itu. Penyorotan menunjukkan
+              rentang tanggal proyek.
             </p>
           </>
         )}
       </section>
+
+      <Sheet
+        open={Boolean(selectedDate)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDate(null)
+        }}
+      >
+        <SheetContent side="bottom" className="max-h-[80dvh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedDate ? formatDate(selectedDate) : ''}</SheetTitle>
+            <SheetDescription>Tukang yang hadir pada hari ini.</SheetDescription>
+          </SheetHeader>
+
+          <div className="px-4 pb-4">
+            {(() => {
+              const day = calendar.data?.days.find((item) => item.date === selectedDate)
+              if (!day || day.workers.length === 0) {
+                return (
+                  <p className="text-muted-foreground rounded-xl border p-6 text-center text-sm">
+                    Tidak ada tukang yang hadir pada tanggal ini.
+                  </p>
+                )
+              }
+              return (
+                <ul className="divide-y rounded-xl border">
+                  {day.workers.map((worker) => (
+                    <li
+                      key={worker.worker_id}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5"
+                    >
+                      <span className="truncate text-sm">{worker.name}</span>
+                      <span className="text-muted-foreground shrink-0 text-xs">
+                        {quartersLabel(worker.quarters)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )
+            })()}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ProjectFormSheet
         open={formOpen}
