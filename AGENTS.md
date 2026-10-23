@@ -35,6 +35,7 @@ situkang/
 ├── AGENTS.md
 ├── Makefile
 ├── go.mod
+├── scripts/run.sh                # rebuild web + server, then run
 ├── cmd/situkang/main.go          # entrypoint: config, DB, migrate, router, serve
 ├── internal/
 │   ├── config/                   # env config
@@ -68,6 +69,7 @@ Each Go feature package follows the same pattern: `handler.go` (HTTP only), `ser
 make dev-api      # go run ./cmd/situkang  (listens :8080)
 make dev-web      # cd web && bun run dev  (Vite on :5173, proxies /api to :8080)
 make build        # cd web && bun install && bun run build, then go build -o bin/situkang ./cmd/situkang
+make run          # ./scripts/run.sh: rebuild web + server, then run (Ctrl+C to stop)
 make test         # go test ./...  and  cd web && bun run typecheck
 make lint         # go vet ./...  and  cd web && bun run lint
 make create-admin # go run ./cmd/situkang create-admin  (prompts for username/password)

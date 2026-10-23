@@ -1,4 +1,4 @@
-.PHONY: prepare dev-api dev-web build test lint create-admin
+.PHONY: prepare dev-api dev-web build run test lint create-admin
 
 # go:embed needs web/dist to exist before any Go command runs. In development the
 # frontend is served by Vite, so a placeholder index.html is enough.
@@ -15,6 +15,9 @@ dev-web:
 build:
 	cd web && bun install && bun run build
 	go build -o bin/situkang ./cmd/situkang
+
+run:
+	./scripts/run.sh
 
 test: prepare
 	go test ./...
