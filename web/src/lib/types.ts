@@ -145,3 +145,7 @@ export type RecapDetail = {
   period_start: string
   period_end: string
 }
+
+export type Settings = {
+  working_days: number[]
+}

@@ -1,6 +1,6 @@
-import { Building2, ClipboardCheck, Home, Receipt, Users } from 'lucide-react'
+import { Building2, ClipboardCheck, Home, Receipt, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { useLogout, useMe } from '@/hooks/use-auth'
@@ -76,6 +76,14 @@ export function AppShell() {
               <span className="text-muted-foreground hidden max-w-[10rem] truncate text-xs sm:inline">
                 {user?.username}
               </span>
+              <Button
+                variant="ghost"
+                className="size-11 p-0"
+                aria-label="Pengaturan"
+                render={<Link to="/pengaturan" />}
+              >
+                <Settings className="size-5" aria-hidden />
+              </Button>
               <Button
                 variant="ghost"
                 className="h-11 px-3"

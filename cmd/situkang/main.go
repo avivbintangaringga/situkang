@@ -31,6 +31,7 @@ import (
 	"situkang/internal/httpx"
 	"situkang/internal/project"
 	"situkang/internal/recap"
+	"situkang/internal/settings"
 	"situkang/internal/worker"
 )
 
@@ -73,6 +74,7 @@ func run() error {
 	cashAdvanceSvc := cashadvance.NewService(sqlDB, appClock)
 	recapSvc := recap.NewService(sqlDB, appClock)
 	projectSvc := project.NewService(sqlDB, appClock)
+	settingsSvc := settings.NewService(sqlDB, appClock)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -88,7 +90,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, projectSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, projectSvc, settingsSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -121,13 +123,14 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, projectSvc *project.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, projectSvc *project.Service, settingsSvc *settings.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
 	workerHandler := worker.NewHandler(workerSvc)
 	attendanceHandler := attendance.NewHandler(attendanceSvc)
 	cashAdvanceHandler := cashadvance.NewHandler(cashAdvanceSvc)
 	recapHandler := recap.NewHandler(recapSvc)
 	projectHandler := project.NewHandler(projectSvc)
+	settingsHandler := settings.NewHandler(settingsSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -185,6 +188,9 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Get("/projects/{id}", projectHandler.Get)
 			protected.Put("/projects/{id}", projectHandler.Update)
 			protected.Delete("/projects/{id}", projectHandler.Delete)
+
+			protected.Get("/settings", settingsHandler.Get)
+			protected.Put("/settings", settingsHandler.Update)
 		})
 	})
 

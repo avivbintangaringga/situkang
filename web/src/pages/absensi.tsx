@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAttendanceDay, useSaveDay } from '@/hooks/use-attendance'
 import { useProjects } from '@/hooks/use-projects'
+import { useSettings } from '@/hooks/use-settings'
 import { formatDate, formatRupiah, todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +26,7 @@ export function AbsensiPage() {
   const { data, isPending, isError, error, refetch } = useAttendanceDay(date)
   const { mutate: saveDay, isPending: saving, error: saveError } = useSaveDay()
   const projects = useProjects()
+  const settings = useSettings()
 
   const [draft, setDraft] = useState<Record<number, number>>({})
   const [projectDraft, setProjectDraft] = useState<Record<number, number[]>>({})
@@ -106,6 +108,14 @@ export function AbsensiPage() {
   const present = rows.filter((row) => row.quarters > 0).length
   const total = rows.reduce((sum, row) => sum + row.preview, 0)
 
+  const isoWeekday = currentDate
+    ? ((parseISO(currentDate).getDay() + 6) % 7) + 1
+    : 0
+  const isNonWorkingDay =
+    Boolean(currentDate) &&
+    Boolean(settings.data) &&
+    !settings.data?.working_days.includes(isoWeekday)
+
   return (
     <div className="space-y-4">
       <div>
@@ -148,7 +158,12 @@ export function AbsensiPage() {
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium">{currentDate ? formatDate(currentDate) : '—'}</p>
+          <p className="text-sm font-medium">
+            {currentDate ? formatDate(currentDate) : '—'}
+            {isNonWorkingDay && (
+              <span className="text-muted-foreground font-normal"> · Hari libur</span>
+            )}
+          </p>
           {currentDate !== todayISO() && (
             <Button
               variant="ghost"

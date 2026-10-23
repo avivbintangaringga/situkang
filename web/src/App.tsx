@@ -6,6 +6,7 @@ import { AbsensiPage } from '@/pages/absensi'
 import { BerandaPage } from '@/pages/beranda'
 import { LoginPage } from '@/pages/login'
 import { PekerjaPage } from '@/pages/pekerja'
+import { PengaturanPage } from '@/pages/pengaturan'
 import { ProyekPage } from '@/pages/proyek'
 import { RekapDetailPage } from '@/pages/rekap-detail'
 import { RekapPage } from '@/pages/rekap'
@@ -22,6 +23,7 @@ function App() {
           <Route path="/pekerja" element={<PekerjaPage />} />
           <Route path="/pekerja/:id" element={<WorkerDetailPage />} />
           <Route path="/proyek" element={<ProyekPage />} />
+          <Route path="/pengaturan" element={<PengaturanPage />} />
           <Route path="/rekap" element={<RekapPage />} />
           <Route path="/rekap/:id" element={<RekapDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
