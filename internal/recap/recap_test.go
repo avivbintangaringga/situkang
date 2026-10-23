@@ -752,3 +752,25 @@ func TestPublicDetailShareLifecycle(t *testing.T) {
 		t.Fatalf("public detail after reopen: %v", err)
 	}
 }
+
+func TestRecapNameUsesRangeEnd(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-10-18", 4, 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-10-20", 4, 100_000)
+
+	start, end := "2026-10-18", "2026-10-20"
+	recap, err := svc.Create(ctx, CreateInput{Mode: "custom", StartDate: &start, EndDate: &end})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	detail, err := svc.Detail(ctx, recap.ID)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if detail.Recap.Name != "Rekap Selasa, 20 Oktober 2026" {
+		t.Fatalf("name = %q, want the range end date", detail.Recap.Name)
+	}
+}

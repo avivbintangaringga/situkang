@@ -114,6 +114,15 @@ type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
+// nameSource prefers the end of the recap range, falling back to the creation
+// date for all_unsettled recaps which have no range.
+func nameSource(end sql.NullString, createdAt string) string {
+	if end.Valid {
+		return end.String
+	}
+	return createdAt
+}
+
 func getRecap(ctx context.Context, q queryer, id int64) (Recap, error) {
 	const query = `SELECT id, mode, start_date, end_date, status, created_at, finalized_at FROM recaps WHERE id = ?`
 
@@ -136,7 +145,7 @@ func getRecap(ctx context.Context, q queryer, id int64) (Recap, error) {
 	if finalizedAt.Valid {
 		recap.FinalizedAt = &finalizedAt.String
 	}
-	recap.Name = recapName(recap.CreatedAt)
+	recap.Name = recapName(nameSource(end, recap.CreatedAt))
 	return recap, nil
 }
 
@@ -168,7 +177,7 @@ func listRecaps(ctx context.Context, db *sql.DB) ([]Recap, error) {
 		if finalizedAt.Valid {
 			recap.FinalizedAt = &finalizedAt.String
 		}
-		recap.Name = recapName(recap.CreatedAt)
+		recap.Name = recapName(nameSource(end, recap.CreatedAt))
 		recaps = append(recaps, recap)
 	}
 	if err := rows.Err(); err != nil {
