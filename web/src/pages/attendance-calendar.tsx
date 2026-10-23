@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -110,22 +110,18 @@ export function AttendanceCalendarPage() {
         Absensi
       </Button>
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Kalender absensi</h1>
-        <p className="text-muted-foreground text-sm">
-          Ketuk tanggal untuk melihat tukang yang hadir. Ketuk tanggal lain untuk memilih rentang.
-        </p>
-      </div>
+      <h1 className="text-xl font-semibold tracking-tight">Kalender absensi</h1>
 
       {hasSelection && (
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground min-w-0 truncate text-xs">{selectionLabel}</p>
+        <div className="flex items-center justify-between gap-2 rounded-full border bg-muted/50 py-1 pl-3 pr-1">
+          <p className="min-w-0 truncate text-xs font-medium">{selectionLabel}</p>
           <Button
             type="button"
-            variant="ghost"
-            className="h-9 shrink-0 px-3 text-xs"
+            variant="outline"
+            className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs"
             onClick={clearSelection}
           >
+            <X className="size-3.5" aria-hidden />
             Hapus pilihan
           </Button>
         </div>
@@ -166,19 +162,8 @@ export function AttendanceCalendarPage() {
             onSelectDate={selectDate}
           />
 
-          <div className="bg-muted/50 rounded-xl px-3 py-3 text-center">
-            <p className="text-lg font-semibold">{calendar.data.totals.days}</p>
-            <p className="text-muted-foreground text-[11px]">Hari tercatat</p>
-          </div>
-
           {hasSelection && (
             <section className="space-y-2" aria-live="polite">
-              <div>
-                <h2 className="text-sm font-semibold">{selectionLabel}</h2>
-                <p className="text-muted-foreground text-xs">
-                  {isRange ? 'Kehadiran tukang pada rentang ini.' : 'Tukang yang hadir pada hari ini.'}
-                </p>
-              </div>
 
               {isRange ? (
                 rangeWorkerList.length === 0 ? (
