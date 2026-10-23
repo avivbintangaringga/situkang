@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectTimeline, useProjects } from '@/hooks/use-projects'
+import { useWorkers } from '@/hooks/use-workers'
 import { formatDateShort } from '@/lib/format'
 import type { Project, ProjectStatus, TimelineProject } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -66,7 +67,7 @@ function TimelineRow({ project, month, days }: { project: TimelineProject; month
           {cells.map((cell) => (
             <span
               key={cell.iso}
-              title={`${cell.day}${cell.isTagged ? ' · tercatat' : ''}`}
+              title={`${cell.day}${cell.isTagged ? ' · tukang hadir' : ''}`}
               className={cn(
                 'h-5 rounded-[2px]',
                 cell.isTagged
@@ -87,6 +88,9 @@ export function ProyekPage() {
   const [month, setMonth] = useState(currentMonth)
   const projects = useProjects()
   const timeline = useProjectTimeline(month)
+  const workers = useWorkers('', true)
+
+  const workerNames = new Map((workers.data ?? []).map((worker) => [worker.id, worker.name]))
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
@@ -184,8 +188,8 @@ export function ProyekPage() {
               <div className="rounded-xl border p-6 text-center">
                 <p className="text-sm">Belum ada proyek pada bulan ini.</p>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Proyek yang punya tanggal atau ditandai di absensi akan tampil
-                  di sini.
+                  Proyek yang punya tanggal atau punya tukang dengan absensi akan
+                  tampil di sini.
                 </p>
               </div>
             ) : (
@@ -209,6 +213,9 @@ export function ProyekPage() {
                 <span className="bg-primary size-3 rounded-[2px]" aria-hidden />
                 Hari tercatat
               </span>
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Hari tercatat adalah hari saat tukang yang ditugaskan hadir.
             </p>
           </>
         )}
@@ -245,7 +252,7 @@ export function ProyekPage() {
           <div className="rounded-xl border p-8 text-center">
             <p className="font-medium">Belum ada proyek.</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Tambahkan proyek untuk menandai tempat kerja tukang.
+              Tambahkan proyek untuk menugaskan tukang ke tempat kerja.
             </p>
             <Button className="mt-4 h-11 px-5" onClick={openCreate}>
               Tambah proyek
@@ -255,28 +262,43 @@ export function ProyekPage() {
 
         {!projects.isPending && !projects.isError && projects.data && projects.data.length > 0 && (
           <ul className="space-y-2">
-            {projects.data.map((project) => (
-              <li key={project.id}>
-                <button
-                  type="button"
-                  onClick={() => openEdit(project)}
-                  className="bg-card hover:bg-muted/50 flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors"
-                >
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate font-medium">{project.name}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {project.start_date && project.end_date
-                        ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
-                        : 'Tanggal belum diisi'}
-                      {project.notes ? ` · ${project.notes}` : ''}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="shrink-0 text-xs">
-                    {statusLabel[project.status]}
-                  </Badge>
-                </button>
-              </li>
-            ))}
+            {projects.data.map((project) => {
+              const assignedNames = project.worker_ids
+                .map((id) => workerNames.get(id))
+                .filter((name): name is string => Boolean(name))
+              const workerLabel =
+                project.worker_ids.length === 0
+                  ? 'Belum ada tukang'
+                  : assignedNames.length === project.worker_ids.length
+                    ? assignedNames.join(' · ')
+                    : `${project.worker_ids.length} tukang`
+
+              return (
+                <li key={project.id}>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(project)}
+                    className="bg-card hover:bg-muted/50 flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate font-medium">{project.name}</p>
+                      <p className="text-muted-foreground truncate text-xs">
+                        {project.start_date && project.end_date
+                          ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
+                          : 'Tanggal belum diisi'}
+                        {project.notes ? ` · ${project.notes}` : ''}
+                      </p>
+                      <p className="text-muted-foreground truncate text-xs">
+                        Tukang: {workerLabel}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0 text-xs">
+                      {statusLabel[project.status]}
+                    </Badge>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

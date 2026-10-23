@@ -6,33 +6,25 @@ import (
 	"fmt"
 )
 
-// ProjectRef is a compact project tag shown next to attendance.
-type ProjectRef struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
 // DayRow is one worker on the attendance screen for a single date.
 type DayRow struct {
-	WorkerID int64        `json:"worker_id"`
-	Name     string       `json:"name"`
-	Role     string       `json:"role"`
-	DailyFee int64        `json:"daily_fee"`
-	Quarters int          `json:"quarters"` // 0 means absent
-	Snapshot int64        `json:"snapshot"`
-	Earned   int64        `json:"earned"`
-	Locked   bool         `json:"locked"`
-	Projects []ProjectRef `json:"projects"`
+	WorkerID int64  `json:"worker_id"`
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	DailyFee int64  `json:"daily_fee"`
+	Quarters int    `json:"quarters"` // 0 means absent
+	Snapshot int64  `json:"snapshot"`
+	Earned   int64  `json:"earned"`
+	Locked   bool   `json:"locked"`
 }
 
 // WeekEntry is one recorded day for a worker.
 type WeekEntry struct {
-	ID       int64        `json:"id"`
-	Date     string       `json:"date"`
-	Quarters int          `json:"quarters"`
-	Earned   int64        `json:"earned"`
-	Locked   bool         `json:"locked"`
-	Projects []ProjectRef `json:"projects"`
+	ID       int64  `json:"id"`
+	Date     string `json:"date"`
+	Quarters int    `json:"quarters"`
+	Earned   int64  `json:"earned"`
+	Locked   bool   `json:"locked"`
 }
 
 type record struct {
@@ -71,7 +63,6 @@ func day(ctx context.Context, db *sql.DB, date string) ([]DayRow, error) {
 			&id, &quarters, &snapshot, &recapID); err != nil {
 			return nil, fmt.Errorf("scan attendance day: %w", err)
 		}
-		row.Projects = []ProjectRef{}
 		row.Snapshot = row.DailyFee
 		if quarters.Valid {
 			row.Snapshot = snapshot.Int64
@@ -83,19 +74,6 @@ func day(ctx context.Context, db *sql.DB, date string) ([]DayRow, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("load attendance day: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("load attendance day: %w", err)
-	}
-
-	tags, err := tagRefsByWorker(ctx, db, date)
-	if err != nil {
-		return nil, err
-	}
-	for i := range result {
-		if projects, ok := tags[result[i].WorkerID]; ok {
-			result[i].Projects = projects
-		}
 	}
 	return result, nil
 }
@@ -158,123 +136,6 @@ func remove(ctx context.Context, q execer, id int64) error {
 	return nil
 }
 
-func replaceTags(ctx context.Context, q execer, attendanceID int64, projectIDs []int64) error {
-	if _, err := q.ExecContext(ctx, `DELETE FROM attendance_projects WHERE attendance_id = ?`, attendanceID); err != nil {
-		return fmt.Errorf("clear attendance projects: %w", err)
-	}
-	for _, projectID := range projectIDs {
-		if _, err := q.ExecContext(ctx,
-			`INSERT INTO attendance_projects (attendance_id, project_id) VALUES (?, ?)`,
-			attendanceID, projectID); err != nil {
-			return fmt.Errorf("tag attendance project: %w", err)
-		}
-	}
-	return nil
-}
-
-func tagIDsByWorker(ctx context.Context, q queryer, date string) (map[int64][]int64, error) {
-	const query = `
-		SELECT a.worker_id, ap.project_id
-		FROM attendances a
-		JOIN attendance_projects ap ON ap.attendance_id = a.id
-		WHERE a.date = ?
-		ORDER BY ap.project_id`
-
-	rows, err := q.QueryContext(ctx, query, date)
-	if err != nil {
-		return nil, fmt.Errorf("load attendance tags: %w", err)
-	}
-	defer rows.Close()
-
-	tags := make(map[int64][]int64)
-	for rows.Next() {
-		var (
-			workerID  int64
-			projectID int64
-		)
-		if err := rows.Scan(&workerID, &projectID); err != nil {
-			return nil, fmt.Errorf("scan attendance tag: %w", err)
-		}
-		tags[workerID] = append(tags[workerID], projectID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("load attendance tags: %w", err)
-	}
-	return tags, nil
-}
-
-func tagRefsByWorker(ctx context.Context, q queryer, date string) (map[int64][]ProjectRef, error) {
-	const query = `
-		SELECT a.worker_id, p.id, p.name
-		FROM attendances a
-		JOIN attendance_projects ap ON ap.attendance_id = a.id
-		JOIN projects p ON p.id = ap.project_id
-		WHERE a.date = ?
-		ORDER BY p.name COLLATE NOCASE`
-
-	rows, err := q.QueryContext(ctx, query, date)
-	if err != nil {
-		return nil, fmt.Errorf("load attendance project tags: %w", err)
-	}
-	defer rows.Close()
-
-	tags := make(map[int64][]ProjectRef)
-	for rows.Next() {
-		var (
-			workerID int64
-			project  ProjectRef
-		)
-		if err := rows.Scan(&workerID, &project.ID, &project.Name); err != nil {
-			return nil, fmt.Errorf("scan attendance project tag: %w", err)
-		}
-		tags[workerID] = append(tags[workerID], project)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("load attendance project tags: %w", err)
-	}
-	return tags, nil
-}
-
-func weekTagRefs(ctx context.Context, q queryer, workerID int64, from, to string) (map[int64][]ProjectRef, error) {
-	const query = `
-		SELECT ap.attendance_id, p.id, p.name
-		FROM attendance_projects ap
-		JOIN projects p ON p.id = ap.project_id
-		JOIN attendances a ON a.id = ap.attendance_id
-		WHERE a.worker_id = ? AND a.date BETWEEN ? AND ?
-		ORDER BY p.name COLLATE NOCASE`
-
-	rows, err := q.QueryContext(ctx, query, workerID, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("load week project tags: %w", err)
-	}
-	defer rows.Close()
-
-	tags := make(map[int64][]ProjectRef)
-	for rows.Next() {
-		var (
-			attendanceID int64
-			project      ProjectRef
-		)
-		if err := rows.Scan(&attendanceID, &project.ID, &project.Name); err != nil {
-			return nil, fmt.Errorf("scan week project tag: %w", err)
-		}
-		tags[attendanceID] = append(tags[attendanceID], project)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("load week project tags: %w", err)
-	}
-	return tags, nil
-}
-
-func projectExists(ctx context.Context, q queryer, id int64) (bool, error) {
-	var count int
-	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE id = ?`, id).Scan(&count); err != nil {
-		return false, fmt.Errorf("check project: %w", err)
-	}
-	return count > 0, nil
-}
-
 func workerFee(ctx context.Context, q queryer, workerID int64) (int64, bool, error) {
 	const query = `SELECT daily_fee, active FROM workers WHERE id = ?`
 
@@ -309,26 +170,12 @@ func week(ctx context.Context, db *sql.DB, workerID int64, from, to string) ([]W
 		if err := rows.Scan(&entry.ID, &entry.Date, &entry.Quarters, &snapshot, &recapID); err != nil {
 			return nil, fmt.Errorf("scan attendance week: %w", err)
 		}
-		entry.Projects = []ProjectRef{}
 		entry.Earned = earned(snapshot, entry.Quarters)
 		entry.Locked = recapID.Valid
 		entries = append(entries, entry)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("load attendance week: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("load attendance week: %w", err)
-	}
-
-	tags, err := weekTagRefs(ctx, db, workerID, from, to)
-	if err != nil {
-		return nil, err
-	}
-	for i := range entries {
-		if projects, ok := tags[entries[i].ID]; ok {
-			entries[i].Projects = projects
-		}
 	}
 	return entries, nil
 }

@@ -94,7 +94,7 @@ Config via env vars (with defaults): `PORT=8080`, `DB_PATH=./data/situkang.db`, 
 - The ¼, ½, and ¾ options can be enabled or disabled in settings (`attendance_fractions`, default `1,2,3`). Full day and absent are always available. Stored data still accepts 1-4, so disabling an option never invalidates existing rows; the UI must still show a record's current value even when its option is disabled.
 - **Snapshot the fee**: each attendance row stores `daily_fee_snapshot` (copied from the worker's `daily_fee` at the time of recording). Changing a worker's fee later must NOT change existing attendance.
 - Earned amount for a record = `daily_fee_snapshot * quarters / 4` using integer division (floor). Sum these per record; do not multiply the total.
-- The fee is per worker per day, **regardless of how many projects** the worker was on. Projects are only tags on the attendance record (many-to-many via `attendance_projects`). Project tags never change the amount. Consequence: the project timeline (§9 step 8) is a record of what actually happened, not a plan - do not model planned assignments.
+- The fee is per worker per day, **regardless of how many projects** the worker is on. Projects are a separate assignment: a project has a set of assigned workers (many-to-many via `project_workers`), and a worker can belong to several projects. Assignments never change the amount. Consequence: the project timeline (§9 step 8) shows days when assigned workers attended - a record of what actually happened, not a plan.
 - Working days default to Monday-Saturday (configurable setting `working_days`, stored as a list of weekday numbers). This only controls which days are shown/highlighted by default. **Recording attendance on a non-working day (e.g. Sunday) must still be allowed.**
 
 ### 5.3 Dates and time
@@ -182,14 +182,14 @@ Create in `migrations/0001_init.sql`. Use `STRICT` tables where possible. Enable
 - `workers(id, name, role, daily_fee INTEGER, active INTEGER DEFAULT 1, created_at)` - **soft delete only** (set `active = 0`); never hard-delete a worker with history
 - `projects(id, name, start_date, end_date, status, notes, created_at)` - status: `aktif` | `selesai` | `ditunda`
 - `attendances(id, worker_id, date, quarters CHECK 1..4, daily_fee_snapshot, recap_id NULL, created_at, UNIQUE(worker_id, date))`
-- `attendance_projects(attendance_id, project_id, PRIMARY KEY(attendance_id, project_id))`
+- `project_workers(project_id, worker_id, PRIMARY KEY(project_id, worker_id))` - the workers assigned to a project; `project_id` cascades on project delete
 - `cash_advances(id, worker_id, date, amount CHECK > 0, note, recap_id NULL, source_recap_id NULL, created_at)` - `source_recap_id` is set only on the automatic "Saldo sebelumnya" kas bon and points at the recap that created it
 - `recaps(id, mode, start_date NULL, end_date NULL, status, created_at, finalized_at NULL)` - `mode` is `since_monday` | `all_unsettled` | `custom`
 - `recap_lines(id, recap_id, worker_id, worker_name, worker_role, days_quarters, gross, advances, extras, net)`
 - `recap_paid(recap_id, worker_id, paid INTEGER DEFAULT 1, PRIMARY KEY(recap_id, worker_id))` - the draft's per-worker `paid` toggle; a missing row means `paid = true`. Rows are kept after finalize (they record which workers were skipped) and survive reopen. Cascade-delete with the recap.
 - `extra_fees(id, worker_id, recap_id NULL, amount, description, created_at)` - `recap_id` is nullable because `paid = false` workers have their extras detached on finalize
 
-Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`.
+Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`, `project_workers(worker_id)`.
 
 ## 7. API conventions
 
@@ -204,7 +204,7 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
   - `PATCH /api/recaps/{id}/extra-fees/{feeId}`, `DELETE /api/recaps/{id}/extra-fees/{feeId}`, `POST /api/recaps/{id}/extra-fees`
   - `POST /api/recaps/{id}/finalize`, `POST /api/recaps/{id}/reopen`
   - `GET /api/recaps/{id}/export.xlsx`, `GET /api/recaps/{id}/whatsapp`
-- Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters, project_ids}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error - the record simply stays.
+- Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error - the record simply stays.
 
 ## 8. Frontend rules
 
@@ -228,7 +228,7 @@ Build in this order, one step at a time. Finish, test, and commit each step befo
 5. **Kas bon**: CRUD (respecting lock rule), per-worker list.
 6. **Recap core**: create draft (3 modes + warning, default `all_unsettled`), live calculation, `paid` toggle persisted in `recap_paid`, extra fees, finalize, locking, reopen. **Write Go unit tests for the calculation, settlement, carry-forward, and reopen logic** - this is the one place bugs cost real money.
 7. **Exports**: Excel and WhatsApp text.
-8. **Projects**: list/CRUD with status and dates, tag projects on attendance, show project on worker/day views, plus the **timeline/calendar view**: a read-only month view drawing each project's `start_date`-`end_date` bar overlaid with the days workers were tagged on it. Derived entirely from existing data - no planning or assignment table, no drag-and-drop editing.
+8. **Projects**: list/CRUD with status and dates, assign workers to projects (`worker_ids`), show assigned projects on the worker detail, plus the **timeline/calendar view**: a read-only month view drawing each project's `start_date`-`end_date` bar overlaid with the days its assigned workers attended. Derived entirely from existing data - no planning or assignment table beyond `project_workers`, no drag-and-drop editing.
 9. **Settings**: working days and which attendance fractions (1/4, 1/2, 3/4) are enabled.
 10. **Polish**: dashboard (Beranda: unsettled total per worker), mobile QA pass.
 

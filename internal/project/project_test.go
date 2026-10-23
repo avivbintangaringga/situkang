@@ -46,10 +46,10 @@ CREATE TABLE attendances (
     created_at         TEXT NOT NULL
 ) STRICT;
 
-CREATE TABLE attendance_projects (
-    attendance_id INTEGER NOT NULL REFERENCES attendances(id) ON DELETE CASCADE,
-    project_id    INTEGER NOT NULL REFERENCES projects(id),
-    PRIMARY KEY (attendance_id, project_id)
+CREATE TABLE project_workers (
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    worker_id  INTEGER NOT NULL REFERENCES workers(id),
+    PRIMARY KEY (project_id, worker_id)
 ) STRICT;
 `
 
@@ -69,9 +69,29 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 	return NewService(sqlDB, clock.Fixed(time.Date(2026, 1, 5, 8, 0, 0, 0, time.UTC))), sqlDB
 }
 
+func addWorker(t *testing.T, sqlDB *sql.DB, id int64, name string) {
+	t.Helper()
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO workers (id, name, role, daily_fee, active, created_at) VALUES (?, ?, 'Tukang', 100000, 1, '2026-01-01T00:00:00Z')`,
+		id, name); err != nil {
+		t.Fatalf("add worker: %v", err)
+	}
+}
+
+func addAttendance(t *testing.T, sqlDB *sql.DB, id, workerID int64, date string) {
+	t.Helper()
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO attendances (id, worker_id, date, quarters, daily_fee_snapshot, created_at) VALUES (?, ?, ?, 4, 100000, '2026-01-01T00:00:00Z')`,
+		id, workerID, date); err != nil {
+		t.Fatalf("add attendance: %v", err)
+	}
+}
+
 func TestCreateGetUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, _ := testService(t)
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
+	addWorker(t, sqlDB, 2, "Andi")
 
 	created, err := svc.Create(ctx, Input{
 		Name:      "  Rumah Budi  ",
@@ -79,6 +99,7 @@ func TestCreateGetUpdate(t *testing.T) {
 		StartDate: "2026-01-05",
 		EndDate:   "2026-02-05",
 		Notes:     " Renovasi ",
+		WorkerIDs: []int64{2, 1, 2},
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -88,6 +109,9 @@ func TestCreateGetUpdate(t *testing.T) {
 	}
 	if created.StartDate == nil || *created.StartDate != "2026-01-05" {
 		t.Fatalf("start = %v", created.StartDate)
+	}
+	if len(created.WorkerIDs) != 2 || created.WorkerIDs[0] != 1 || created.WorkerIDs[1] != 2 {
+		t.Fatalf("worker ids = %v, want deduplicated [1 2]", created.WorkerIDs)
 	}
 
 	got, err := svc.Get(ctx, created.ID)
@@ -106,8 +130,9 @@ func TestCreateGetUpdate(t *testing.T) {
 	}
 
 	updated, err := svc.Update(ctx, created.ID, Input{
-		Name:   "Rumah Budi 2",
-		Status: "selesai",
+		Name:      "Rumah Budi 2",
+		Status:    "selesai",
+		WorkerIDs: []int64{2},
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -117,6 +142,74 @@ func TestCreateGetUpdate(t *testing.T) {
 	}
 	if updated.StartDate != nil || updated.EndDate != nil {
 		t.Fatalf("dates must be cleared, got %+v", updated)
+	}
+	if len(updated.WorkerIDs) != 1 || updated.WorkerIDs[0] != 2 {
+		t.Fatalf("worker ids after update = %v, want [2]", updated.WorkerIDs)
+	}
+}
+
+func TestWorkerAssignmentReplace(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
+	addWorker(t, sqlDB, 2, "Andi")
+	addWorker(t, sqlDB, 3, "Cici")
+
+	created, err := svc.Create(ctx, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{1, 2},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	updated, err := svc.Update(ctx, created.ID, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{3},
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if len(updated.WorkerIDs) != 1 || updated.WorkerIDs[0] != 3 {
+		t.Fatalf("worker ids = %v, want [3]", updated.WorkerIDs)
+	}
+
+	items, err := svc.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(items) != 1 || len(items[0].WorkerIDs) != 1 || items[0].WorkerIDs[0] != 3 {
+		t.Fatalf("list = %+v, want only worker 3", items)
+	}
+}
+
+func TestInvalidWorkerAssignment(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
+
+	if _, err := svc.Create(ctx, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{1, 99},
+	}); err != ErrInvalidWorker {
+		t.Fatalf("create error = %v, want ErrInvalidWorker", err)
+	}
+
+	created, err := svc.Create(ctx, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{1},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := svc.Update(ctx, created.ID, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{99},
+	}); err != ErrInvalidWorker {
+		t.Fatalf("update error = %v, want ErrInvalidWorker", err)
+	}
+
+	got, err := svc.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.WorkerIDs) != 1 || got.WorkerIDs[0] != 1 {
+		t.Fatalf("assignments changed on failed update: %v", got.WorkerIDs)
 	}
 }
 
@@ -137,6 +230,7 @@ func TestValidation(t *testing.T) {
 		{"bad end", Input{Name: "Rumah", Status: "aktif", EndDate: "kemarin"}, ErrInvalidDate},
 		{"reversed range", Input{Name: "Rumah", Status: "aktif", StartDate: "2026-02-05", EndDate: "2026-01-05"}, ErrInvalidRange},
 		{"long notes", Input{Name: "Rumah", Status: "aktif", Notes: strings.Repeat("a", 501)}, ErrNotesTooLong},
+		{"zero worker", Input{Name: "Rumah", Status: "aktif", WorkerIDs: []int64{0}}, ErrInvalidWorker},
 	}
 
 	for _, tc := range cases {
@@ -152,11 +246,14 @@ func TestValidation(t *testing.T) {
 	}
 }
 
-func TestDeleteAndInUse(t *testing.T) {
+func TestDeleteRemovesAssignments(t *testing.T) {
 	ctx := context.Background()
 	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
 
-	created, err := svc.Create(ctx, Input{Name: "Rumah", Status: "aktif"})
+	created, err := svc.Create(ctx, Input{
+		Name: "Rumah", Status: "aktif", WorkerIDs: []int64{1},
+	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -167,34 +264,25 @@ func TestDeleteAndInUse(t *testing.T) {
 		t.Fatalf("error = %v, want ErrNotFound", err)
 	}
 
-	used, err := svc.Create(ctx, Input{Name: "Gudang", Status: "aktif"})
-	if err != nil {
-		t.Fatalf("Create: %v", err)
+	var count int
+	if err := sqlDB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM project_workers WHERE project_id = ?`, created.ID).Scan(&count); err != nil {
+		t.Fatalf("count assignments: %v", err)
 	}
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO workers (id, name, role, daily_fee, active, created_at) VALUES (1, 'Budi', 'Tukang', 100000, 1, '2026-01-01T00:00:00Z')`); err != nil {
-		t.Fatalf("add worker: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO attendances (id, worker_id, date, quarters, daily_fee_snapshot, created_at) VALUES (1, 1, '2026-01-05', 4, 100000, '2026-01-05T00:00:00Z')`); err != nil {
-		t.Fatalf("add attendance: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO attendance_projects (attendance_id, project_id) VALUES (1, ?)`, used.ID); err != nil {
-		t.Fatalf("tag project: %v", err)
-	}
-
-	if err := svc.Delete(ctx, used.ID); err != ErrInUse {
-		t.Fatalf("delete used error = %v, want ErrInUse", err)
+	if count != 0 {
+		t.Fatalf("assignments = %d, want 0 after cascade delete", count)
 	}
 }
 
 func TestTimeline(t *testing.T) {
 	ctx := context.Background()
 	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi")
+	addWorker(t, sqlDB, 2, "Andi")
 
 	current, err := svc.Create(ctx, Input{
 		Name: "Rumah", Status: "aktif", StartDate: "2026-01-05", EndDate: "2026-01-20",
+		WorkerIDs: []int64{1},
 	})
 	if err != nil {
 		t.Fatalf("Create current: %v", err)
@@ -205,18 +293,9 @@ func TestTimeline(t *testing.T) {
 		t.Fatalf("Create old: %v", err)
 	}
 
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO workers (id, name, role, daily_fee, active, created_at) VALUES (1, 'Budi', 'Tukang', 100000, 1, '2026-01-01T00:00:00Z')`); err != nil {
-		t.Fatalf("add worker: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO attendances (id, worker_id, date, quarters, daily_fee_snapshot, created_at) VALUES (1, 1, '2026-01-07', 4, 100000, '2026-01-07T00:00:00Z')`); err != nil {
-		t.Fatalf("add attendance: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO attendance_projects (attendance_id, project_id) VALUES (1, ?)`, current.ID); err != nil {
-		t.Fatalf("tag project: %v", err)
-	}
+	addAttendance(t, sqlDB, 1, 1, "2026-01-07")
+	addAttendance(t, sqlDB, 2, 1, "2026-01-08")
+	addAttendance(t, sqlDB, 3, 2, "2026-01-09")
 
 	result, err := svc.Timeline(ctx, "2026-01")
 	if err != nil {
@@ -228,8 +307,12 @@ func TestTimeline(t *testing.T) {
 	if len(result.Projects) != 1 || result.Projects[0].Name != "Rumah" {
 		t.Fatalf("projects = %+v, want only Rumah", result.Projects)
 	}
-	if len(result.Projects[0].TaggedDays) != 1 || result.Projects[0].TaggedDays[0] != "2026-01-07" {
-		t.Fatalf("tagged days = %v", result.Projects[0].TaggedDays)
+	days := result.Projects[0].TaggedDays
+	if len(days) != 2 || days[0] != "2026-01-07" || days[1] != "2026-01-08" {
+		t.Fatalf("tagged days = %v, want assigned worker attendance days", days)
+	}
+	if result.Projects[0].ID != current.ID {
+		t.Fatalf("project id = %d, want %d", result.Projects[0].ID, current.ID)
 	}
 
 	if _, err := svc.Timeline(ctx, "2026-13"); err != ErrInvalidMonth {
@@ -264,15 +347,34 @@ func doJSON(t *testing.T, r http.Handler, method, path, body string) *httptest.R
 func TestHandler(t *testing.T) {
 	svc, sqlDB := testService(t)
 	r := newTestRouter(t, svc)
+	addWorker(t, sqlDB, 1, "Budi")
 
-	rec := doJSON(t, r, http.MethodPost, "/projects", `{"name":"Rumah","status":"aktif","start_date":"2026-01-05","end_date":"2026-02-05","notes":""}`)
+	rec := doJSON(t, r, http.MethodPost, "/projects", `{"name":"Rumah","status":"aktif","start_date":"2026-01-05","end_date":"2026-02-05","notes":"","worker_ids":[1]}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, want 201 (body %s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"worker_ids":[1]`) {
+		t.Fatalf("create body = %s, want worker_ids", rec.Body.String())
+	}
+
+	rec = doJSON(t, r, http.MethodGet, "/projects", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"worker_ids":[1]`) {
+		t.Fatalf("list status = %d body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doJSON(t, r, http.MethodPost, "/projects", `{"name":"Tanpa Tukang","status":"aktif"}`)
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"worker_ids":[]`) {
+		t.Fatalf("empty worker list status = %d body = %s", rec.Code, rec.Body.String())
 	}
 
 	rec = doJSON(t, r, http.MethodPost, "/projects", `{"name":"","status":"aktif"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid name status = %d, want 400", rec.Code)
+	}
+
+	rec = doJSON(t, r, http.MethodPost, "/projects", `{"name":"Gudang","status":"aktif","worker_ids":[99]}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid worker status = %d, want 400", rec.Code)
 	}
 
 	rec = doJSON(t, r, http.MethodGet, "/projects/99", "")
@@ -285,24 +387,8 @@ func TestHandler(t *testing.T) {
 		t.Fatalf("timeline status = %d body = %s", rec.Code, rec.Body.String())
 	}
 
-	if _, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO workers (id, name, role, daily_fee, active, created_at) VALUES (1, 'Budi', 'Tukang', 100000, 1, '2026-01-01T00:00:00Z')`); err != nil {
-		t.Fatalf("add worker: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO attendances (id, worker_id, date, quarters, daily_fee_snapshot, created_at) VALUES (1, 1, '2026-01-05', 4, 100000, '2026-01-05T00:00:00Z')`); err != nil {
-		t.Fatalf("add attendance: %v", err)
-	}
-	if _, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO attendance_projects (attendance_id, project_id) VALUES (1, 1)`); err != nil {
-		t.Fatalf("tag project: %v", err)
-	}
-
 	rec = doJSON(t, r, http.MethodDelete, "/projects/1", "")
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("delete used status = %d, want 409", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "masih dipakai") {
-		t.Fatalf("body = %s", rec.Body.String())
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("delete status = %d, want 204 (body %s)", rec.Code, rec.Body.String())
 	}
 }

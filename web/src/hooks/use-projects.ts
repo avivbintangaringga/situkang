@@ -9,6 +9,7 @@ export type ProjectInput = {
   start_date: string
   end_date: string
   notes: string
+  worker_ids: number[]
 }
 
 function invalidateProjectQueries(queryClient: ReturnType<typeof useQueryClient>) {

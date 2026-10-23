@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-// Project is a construction project. Attendance rows are tagged with projects;
-// projects never change the amount a worker earns.
+// Project is a construction project with an assigned set of workers. Projects
+// never change the amount a worker earns.
 type Project struct {
 	ID        int64   `json:"id"`
 	Name      string  `json:"name"`
@@ -16,10 +16,11 @@ type Project struct {
 	Status    string  `json:"status"`
 	Notes     string  `json:"notes"`
 	CreatedAt string  `json:"created_at"`
+	WorkerIDs []int64 `json:"worker_ids"`
 }
 
-// TimelineProject is one timeline row: the project span plus the days it was
-// actually tagged on attendance in the requested month.
+// TimelineProject is one timeline row: the project span plus the days its
+// assigned workers attended in the requested month.
 type TimelineProject struct {
 	ID         int64    `json:"id"`
 	Name       string   `json:"name"`
@@ -45,6 +46,13 @@ type projectData struct {
 	CreatedAt string
 }
 
+// dbtx is the subset of *sql.DB and *sql.Tx used by the repository.
+type dbtx interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 const selectColumns = `id, name, start_date, end_date, status, COALESCE(notes, ''), created_at`
 
 func list(ctx context.Context, db *sql.DB) ([]Project, error) {
@@ -52,25 +60,50 @@ func list(ctx context.Context, db *sql.DB) ([]Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
-	defer rows.Close()
 
 	projects := make([]Project, 0)
 	for rows.Next() {
 		item, err := scanProject(rows)
 		if err != nil {
+			rows.Close()
 			return nil, err
 		}
 		projects = append(projects, item)
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		return nil, fmt.Errorf("list projects: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+
+	assignments, err := workerIDsByProject(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	for i := range projects {
+		ids := assignments[projects[i].ID]
+		if ids == nil {
+			ids = []int64{}
+		}
+		projects[i].WorkerIDs = ids
 	}
 	return projects, nil
 }
 
 func get(ctx context.Context, db *sql.DB, id int64) (Project, error) {
 	row := db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM projects WHERE id = ?`, id)
-	return scanProject(row)
+	item, err := scanProject(row)
+	if err != nil {
+		return Project{}, err
+	}
+	workerIDs, err := assignedWorkerIDs(ctx, db, id)
+	if err != nil {
+		return Project{}, err
+	}
+	item.WorkerIDs = workerIDs
+	return item, nil
 }
 
 type scanner interface {
@@ -91,40 +124,41 @@ func scanProject(row scanner) (Project, error) {
 	if end.Valid {
 		item.EndDate = &end.String
 	}
+	item.WorkerIDs = []int64{}
 	return item, nil
 }
 
-func insert(ctx context.Context, db *sql.DB, data projectData) (Project, error) {
+func insert(ctx context.Context, q dbtx, data projectData) (int64, error) {
 	const query = `
 		INSERT INTO projects (name, start_date, end_date, status, notes, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)`
 
-	res, err := db.ExecContext(ctx, query, data.Name, data.StartDate, data.EndDate,
+	res, err := q.ExecContext(ctx, query, data.Name, data.StartDate, data.EndDate,
 		data.Status, nullableText(data.Notes), data.CreatedAt)
 	if err != nil {
-		return Project{}, fmt.Errorf("insert project: %w", err)
+		return 0, fmt.Errorf("insert project: %w", err)
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
-		return Project{}, fmt.Errorf("insert project: %w", err)
+		return 0, fmt.Errorf("insert project: %w", err)
 	}
-	return get(ctx, db, id)
+	return id, nil
 }
 
-func update(ctx context.Context, db *sql.DB, id int64, data projectData) (Project, error) {
+func update(ctx context.Context, q dbtx, id int64, data projectData) error {
 	const query = `
 		UPDATE projects SET name = ?, start_date = ?, end_date = ?, status = ?, notes = ?
 		WHERE id = ?`
 
-	res, err := db.ExecContext(ctx, query, data.Name, data.StartDate, data.EndDate,
+	res, err := q.ExecContext(ctx, query, data.Name, data.StartDate, data.EndDate,
 		data.Status, nullableText(data.Notes), id)
 	if err != nil {
-		return Project{}, fmt.Errorf("update project: %w", err)
+		return fmt.Errorf("update project: %w", err)
 	}
 	if affected, err := res.RowsAffected(); err == nil && affected == 0 {
-		return Project{}, sql.ErrNoRows
+		return sql.ErrNoRows
 	}
-	return get(ctx, db, id)
+	return nil
 }
 
 func remove(ctx context.Context, db *sql.DB, id int64) error {
@@ -138,14 +172,79 @@ func remove(ctx context.Context, db *sql.DB, id int64) error {
 	return nil
 }
 
-func usageCount(ctx context.Context, db *sql.DB, id int64) (int, error) {
-	var count int
-	err := db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM attendance_projects WHERE project_id = ?`, id).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("count project usage: %w", err)
+func replaceWorkers(ctx context.Context, q dbtx, projectID int64, workerIDs []int64) error {
+	if _, err := q.ExecContext(ctx, `DELETE FROM project_workers WHERE project_id = ?`, projectID); err != nil {
+		return fmt.Errorf("clear project workers: %w", err)
 	}
-	return count, nil
+	for _, workerID := range workerIDs {
+		if _, err := q.ExecContext(ctx,
+			`INSERT INTO project_workers (project_id, worker_id) VALUES (?, ?)`,
+			projectID, workerID); err != nil {
+			return fmt.Errorf("assign project worker: %w", err)
+		}
+	}
+	return nil
+}
+
+func assignedWorkerIDs(ctx context.Context, q dbtx, projectID int64) ([]int64, error) {
+	rows, err := q.QueryContext(ctx,
+		`SELECT worker_id FROM project_workers WHERE project_id = ? ORDER BY worker_id`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("load project workers: %w", err)
+	}
+	defer rows.Close()
+
+	ids := make([]int64, 0)
+	for rows.Next() {
+		var workerID int64
+		if err := rows.Scan(&workerID); err != nil {
+			return nil, fmt.Errorf("scan project worker: %w", err)
+		}
+		ids = append(ids, workerID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load project workers: %w", err)
+	}
+	return ids, nil
+}
+
+func workerIDsByProject(ctx context.Context, q dbtx) (map[int64][]int64, error) {
+	rows, err := q.QueryContext(ctx,
+		`SELECT project_id, worker_id FROM project_workers ORDER BY project_id, worker_id`)
+	if err != nil {
+		return nil, fmt.Errorf("load project workers: %w", err)
+	}
+	defer rows.Close()
+
+	assignments := make(map[int64][]int64)
+	for rows.Next() {
+		var (
+			projectID int64
+			workerID  int64
+		)
+		if err := rows.Scan(&projectID, &workerID); err != nil {
+			return nil, fmt.Errorf("scan project worker: %w", err)
+		}
+		assignments[projectID] = append(assignments[projectID], workerID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load project workers: %w", err)
+	}
+	return assignments, nil
+}
+
+func workersExist(ctx context.Context, q dbtx, workerIDs []int64) (bool, error) {
+	for _, workerID := range workerIDs {
+		var count int
+		if err := q.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM workers WHERE id = ?`, workerID).Scan(&count); err != nil {
+			return false, fmt.Errorf("check worker: %w", err)
+		}
+		if count == 0 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func timeline(ctx context.Context, db *sql.DB, from, to string) ([]TimelineProject, error) {
@@ -154,13 +253,13 @@ func timeline(ctx context.Context, db *sql.DB, from, to string) ([]TimelineProje
 	if err != nil {
 		return nil, fmt.Errorf("load timeline projects: %w", err)
 	}
-	defer rows.Close()
 
 	projects := make([]TimelineProject, 0)
 	index := make(map[int64]int)
 	for rows.Next() {
 		item, err := scanProject(rows)
 		if err != nil {
+			rows.Close()
 			return nil, err
 		}
 		index[item.ID] = len(projects)
@@ -174,38 +273,42 @@ func timeline(ctx context.Context, db *sql.DB, from, to string) ([]TimelineProje
 		})
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("load timeline projects: %w", err)
+	}
+	if err := rows.Close(); err != nil {
 		return nil, fmt.Errorf("load timeline projects: %w", err)
 	}
 	if len(projects) == 0 {
 		return projects, nil
 	}
 
-	tagRows, err := db.QueryContext(ctx, `
-		SELECT ap.project_id, a.date
-		FROM attendance_projects ap
-		JOIN attendances a ON a.id = ap.attendance_id
+	dayRows, err := db.QueryContext(ctx, `
+		SELECT pw.project_id, a.date
+		FROM project_workers pw
+		JOIN attendances a ON a.worker_id = pw.worker_id
 		WHERE a.date BETWEEN ? AND ?
-		GROUP BY ap.project_id, a.date
+		GROUP BY pw.project_id, a.date
 		ORDER BY a.date`, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("load timeline tags: %w", err)
+		return nil, fmt.Errorf("load timeline days: %w", err)
 	}
-	defer tagRows.Close()
+	defer dayRows.Close()
 
-	for tagRows.Next() {
+	for dayRows.Next() {
 		var (
 			projectID int64
 			date      string
 		)
-		if err := tagRows.Scan(&projectID, &date); err != nil {
-			return nil, fmt.Errorf("scan timeline tag: %w", err)
+		if err := dayRows.Scan(&projectID, &date); err != nil {
+			return nil, fmt.Errorf("scan timeline day: %w", err)
 		}
 		if position, ok := index[projectID]; ok {
 			projects[position].TaggedDays = append(projects[position].TaggedDays, date)
 		}
 	}
-	if err := tagRows.Err(); err != nil {
-		return nil, fmt.Errorf("load timeline tags: %w", err)
+	if err := dayRows.Err(); err != nil {
+		return nil, fmt.Errorf("load timeline days: %w", err)
 	}
 	return projects, nil
 }

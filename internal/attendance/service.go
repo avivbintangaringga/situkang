@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"situkang/internal/clock"
@@ -17,16 +16,14 @@ var (
 	ErrInvalidDate     = errors.New("invalid date")
 	ErrInvalidQuarters = errors.New("invalid quarters")
 	ErrInvalidWorker   = errors.New("invalid worker")
-	ErrInvalidProject  = errors.New("invalid project")
 	ErrDuplicateWorker = errors.New("duplicate worker in day")
 	ErrInvalidRange    = errors.New("invalid date range")
 )
 
 // Item is one worker entry in a day save.
 type Item struct {
-	WorkerID   int64   `json:"worker_id"`
-	Quarters   int     `json:"quarters"`
-	ProjectIDs []int64 `json:"project_ids"`
+	WorkerID int64 `json:"worker_id"`
+	Quarters int   `json:"quarters"`
 }
 
 // Day is the attendance screen payload for one date.
@@ -70,15 +67,13 @@ func (s *Service) Day(ctx context.Context, date string) (Day, error) {
 }
 
 // SaveDay replaces the whole day: listed workers get the given quarters and
-// project tags, omitted workers lose their unlocked record. Locked records are
-// never touched.
+// omitted workers lose their unlocked record. Locked records are never touched.
 func (s *Service) SaveDay(ctx context.Context, date string, items []Item) (Day, error) {
 	if _, err := clock.ParseDate(date); err != nil {
 		return Day{}, ErrInvalidDate
 	}
 
 	seen := make(map[int64]bool, len(items))
-	projectIDs := make([]int64, 0)
 	for _, item := range items {
 		if item.Quarters < 1 || item.Quarters > 4 {
 			return Day{}, ErrInvalidQuarters
@@ -87,23 +82,6 @@ func (s *Service) SaveDay(ctx context.Context, date string, items []Item) (Day, 
 			return Day{}, ErrDuplicateWorker
 		}
 		seen[item.WorkerID] = true
-
-		normalized, err := normalizeIDs(item.ProjectIDs)
-		if err != nil {
-			return Day{}, ErrInvalidProject
-		}
-		projectIDs = append(projectIDs, normalized...)
-	}
-
-	unique := uniqueIDs(projectIDs)
-	for _, id := range unique {
-		ok, err := projectExists(ctx, s.db, id)
-		if err != nil {
-			return Day{}, err
-		}
-		if !ok {
-			return Day{}, ErrInvalidProject
-		}
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -116,18 +94,9 @@ func (s *Service) SaveDay(ctx context.Context, date string, items []Item) (Day, 
 	if err != nil {
 		return Day{}, err
 	}
-	currentTags, err := tagIDsByWorker(ctx, tx, date)
-	if err != nil {
-		return Day{}, err
-	}
 
 	now := s.clock.Now().UTC().Format(time.RFC3339)
 	for _, item := range items {
-		ids, err := normalizeIDs(item.ProjectIDs)
-		if err != nil {
-			return Day{}, ErrInvalidProject
-		}
-
 		fee, active, err := workerFee(ctx, tx, item.WorkerID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -141,11 +110,7 @@ func (s *Service) SaveDay(ctx context.Context, date string, items []Item) (Day, 
 
 		current, ok := existing[item.WorkerID]
 		if !ok {
-			id, err := insert(ctx, tx, item.WorkerID, date, item.Quarters, fee, now)
-			if err != nil {
-				return Day{}, err
-			}
-			if err := replaceTags(ctx, tx, id, ids); err != nil {
+			if _, err := insert(ctx, tx, item.WorkerID, date, item.Quarters, fee, now); err != nil {
 				return Day{}, err
 			}
 			continue
@@ -155,18 +120,12 @@ func (s *Service) SaveDay(ctx context.Context, date string, items []Item) (Day, 
 			if current.Quarters != item.Quarters {
 				return Day{}, ErrLocked
 			}
-			if !sameIDs(currentTags[item.WorkerID], ids) {
-				return Day{}, ErrLocked
-			}
 			continue
 		}
 		if current.Quarters != item.Quarters {
 			if err := updateQuarters(ctx, tx, current.ID, item.Quarters); err != nil {
 				return Day{}, err
 			}
-		}
-		if err := replaceTags(ctx, tx, current.ID, ids); err != nil {
-			return Day{}, err
 		}
 	}
 
@@ -213,39 +172,4 @@ func (s *Service) Week(ctx context.Context, workerID int64, from, to string) ([]
 // Today returns the current Jakarta date as YYYY-MM-DD.
 func (s *Service) Today() string {
 	return clock.FormatDate(s.clock.Today())
-}
-
-// normalizeIDs sorts and deduplicates project ids, rejecting non-positive ids.
-func normalizeIDs(ids []int64) ([]int64, error) {
-	seen := make(map[int64]bool, len(ids))
-	result := make([]int64, 0, len(ids))
-	for _, id := range ids {
-		if id <= 0 {
-			return nil, ErrInvalidProject
-		}
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		result = append(result, id)
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
-	return result, nil
-}
-
-func uniqueIDs(ids []int64) []int64 {
-	result, _ := normalizeIDs(ids)
-	return result
-}
-
-func sameIDs(left, right []int64) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for i := range left {
-		if left[i] != right[i] {
-			return false
-		}
-	}
-	return true
 }

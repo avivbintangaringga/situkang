@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -29,6 +30,7 @@ import {
   useDeleteProject,
   useUpdateProject,
 } from '@/hooks/use-projects'
+import { useWorkers } from '@/hooks/use-workers'
 import { ApiError } from '@/lib/api'
 import type { Project, ProjectStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -50,6 +52,7 @@ const projectSchema = z
     start_date: z.string(),
     end_date: z.string(),
     notes: z.string().max(500, 'Catatan maksimal 500 karakter.'),
+    worker_ids: z.array(z.number()),
   })
   .refine(
     (values) =>
@@ -71,6 +74,7 @@ const emptyValues: ProjectForm = {
   start_date: '',
   end_date: '',
   notes: '',
+  worker_ids: [],
 }
 
 function valuesFor(project?: Project | null): ProjectForm {
@@ -81,6 +85,7 @@ function valuesFor(project?: Project | null): ProjectForm {
     start_date: project.start_date ?? '',
     end_date: project.end_date ?? '',
     notes: project.notes,
+    worker_ids: project.worker_ids,
   }
 }
 
@@ -89,12 +94,14 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
   const create = useCreateProject()
   const update = useUpdateProject(project?.id ?? 0)
   const remove = useDeleteProject()
+  const workers = useWorkers('', false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const form = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
     defaultValues: valuesFor(project),
   })
+  const selectedWorkerIds = form.watch('worker_ids')
 
   useEffect(() => {
     if (!open) return
@@ -112,6 +119,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
       start_date: values.start_date,
       end_date: values.end_date,
       notes: values.notes,
+      worker_ids: values.worker_ids,
     }
 
     if (project) {
@@ -119,6 +127,14 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
     } else {
       create.mutate(input, { onSuccess: () => onOpenChange(false) })
     }
+  }
+
+  function toggleWorker(workerId: number) {
+    const current = form.getValues('worker_ids')
+    const next = current.includes(workerId)
+      ? current.filter((id) => id !== workerId)
+      : [...current, workerId]
+    form.setValue('worker_ids', next, { shouldValidate: true })
   }
 
   function onDelete() {
@@ -137,7 +153,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
         <SheetHeader>
           <SheetTitle>{isEdit ? 'Ubah proyek' : 'Tambah proyek'}</SheetTitle>
           <SheetDescription>
-            Proyek hanya menjadi tanda pada absensi. Upah tukang tidak berubah.
+            Pilih tukang yang bekerja di proyek ini. Upah tukang tidak berubah.
           </SheetDescription>
         </SheetHeader>
 
@@ -215,6 +231,76 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
           )}
 
           <div className="space-y-2">
+            <Label>Tukang</Label>
+            <p className="text-muted-foreground text-xs">
+              Pilih tukang yang ditugaskan ke proyek ini.
+            </p>
+
+            {workers.isPending && (
+              <p className="text-muted-foreground text-sm">Memuat tukang…</p>
+            )}
+
+            {workers.isError && (
+              <div className="rounded-lg border p-4 text-center">
+                <p className="text-sm">Tidak dapat memuat daftar tukang.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2 h-11 px-4"
+                  onClick={() => void workers.refetch()}
+                >
+                  Coba lagi
+                </Button>
+              </div>
+            )}
+
+            {workers.data && workers.data.length === 0 && (
+              <div className="rounded-lg border p-4 text-center">
+                <p className="text-sm">Belum ada tukang aktif.</p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Tambahkan tukang dulu di menu Pekerja.
+                </p>
+              </div>
+            )}
+
+            {workers.data && workers.data.length > 0 && (
+              <ul className="space-y-2">
+                {workers.data.map((worker) => {
+                  const active = selectedWorkerIds.includes(worker.id)
+                  return (
+                    <li key={worker.id}>
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => toggleWorker(worker.id)}
+                        className={cn(
+                          'flex h-11 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm transition-colors',
+                          active ? 'border-primary bg-primary/5' : 'hover:bg-muted',
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{worker.name}</span>
+                          <span className="text-muted-foreground block truncate text-xs">
+                            {worker.role}
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            'flex size-5 shrink-0 items-center justify-center rounded border',
+                            active ? 'bg-primary text-primary-foreground border-primary' : '',
+                          )}
+                        >
+                          {active && <Check className="size-3.5" aria-hidden />}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="project-notes">Catatan</Label>
             <textarea
               id="project-notes"
@@ -262,8 +348,8 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus proyek ini?</AlertDialogTitle>
             <AlertDialogDescription>
-              Proyek yang sudah ditandai di absensi tidak dapat dihapus. Lepas
-              tanda proyeknya terlebih dahulu.
+              Proyek akan dihapus beserta daftar tukangnya. Catatan absensi
+              tidak berubah.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {remove.error && (

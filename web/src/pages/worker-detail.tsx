@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useWorkerWeek } from '@/hooks/use-attendance'
 import { useCashAdvances } from '@/hooks/use-cash-advances'
+import { useProjects } from '@/hooks/use-projects'
 import { useWorker } from '@/hooks/use-workers'
 import {
   formatDate,
@@ -23,6 +24,7 @@ export function WorkerDetailPage() {
 
   const { data: worker, isPending, isError, error, refetch } = useWorker(workerId)
   const advances = useCashAdvances(workerId)
+  const projects = useProjects()
 
   const [advanceOpen, setAdvanceOpen] = useState(false)
   const [editingAdvance, setEditingAdvance] = useState<CashAdvance | null>(null)
@@ -37,6 +39,9 @@ export function WorkerDetailPage() {
   const advancesTotal = (advances.data ?? []).reduce(
     (sum, advance) => sum + advance.amount,
     0,
+  )
+  const assignedProjects = (projects.data ?? []).filter((project) =>
+    project.worker_ids.includes(workerId),
   )
 
   function openAdvance(advance: CashAdvance | null) {
@@ -78,6 +83,41 @@ export function WorkerDetailPage() {
           </div>
 
           <section className="space-y-2">
+            <h2 className="text-sm font-semibold">Proyek</h2>
+
+            {projects.isPending && <Skeleton className="h-16 w-full rounded-xl" />}
+
+            {projects.isError && (
+              <div className="rounded-xl border p-6 text-center">
+                <p className="text-sm">Tidak dapat memuat proyek.</p>
+                <Button
+                  variant="outline"
+                  className="mt-4 h-11 px-5"
+                  onClick={() => void projects.refetch()}
+                >
+                  Coba lagi
+                </Button>
+              </div>
+            )}
+
+            {projects.data && assignedProjects.length === 0 && (
+              <div className="rounded-xl border p-6 text-center">
+                <p className="text-sm">Belum ditugaskan ke proyek.</p>
+              </div>
+            )}
+
+            {assignedProjects.length > 0 && (
+              <ul className="divide-y rounded-xl border">
+                {assignedProjects.map((project) => (
+                  <li key={project.id} className="px-3 py-2.5 text-sm">
+                    {project.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="space-y-2">
             <div className="flex items-baseline justify-between">
               <h2 className="text-sm font-semibold">Absensi minggu ini</h2>
               <span className="text-sm font-medium">{formatRupiah(total)}</span>
@@ -113,11 +153,6 @@ export function WorkerDetailPage() {
                             </>
                           )}
                         </p>
-                        {entry && entry.projects.length > 0 && (
-                          <p className="text-muted-foreground truncate text-xs">
-                            {entry.projects.map((project) => project.name).join(' · ')}
-                          </p>
-                        )}
                       </div>
                       <span className="shrink-0 text-sm font-medium">
                         {entry ? formatRupiah(entry.earned) : '-'}

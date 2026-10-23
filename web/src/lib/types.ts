@@ -22,11 +22,7 @@ export type Project = {
   status: ProjectStatus
   notes: string
   created_at: string
-}
-
-export type ProjectRef = {
-  id: number
-  name: string
+  worker_ids: number[]
 }
 
 export type TimelineProject = {
@@ -53,7 +49,6 @@ export type AttendanceDayRow = {
   snapshot: number
   earned: number
   locked: boolean
-  projects: ProjectRef[]
 }
 
 export type AttendanceDay = {
@@ -69,7 +64,6 @@ export type AttendanceWeekEntry = {
   quarters: number
   earned: number
   locked: boolean
-  projects: ProjectRef[]
 }
 
 export type CashAdvance = {

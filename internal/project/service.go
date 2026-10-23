@@ -1,10 +1,11 @@
-// Package project manages construction projects and their attendance tags.
+// Package project manages construction projects and their worker assignments.
 package project
 
 import (
 	"context"
 	"database/sql"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,7 +19,7 @@ var (
 	ErrInvalidDate   = errors.New("invalid project date")
 	ErrInvalidRange  = errors.New("invalid project date range")
 	ErrNotesTooLong  = errors.New("project notes too long")
-	ErrInUse         = errors.New("project is tagged on attendance")
+	ErrInvalidWorker = errors.New("invalid project worker")
 	ErrInvalidMonth  = errors.New("invalid month")
 )
 
@@ -34,6 +35,7 @@ type Input struct {
 	EndDate   string
 	Status    string
 	Notes     string
+	WorkerIDs []int64
 }
 
 // Service holds the project business rules.
@@ -64,17 +66,46 @@ func (s *Service) Get(ctx context.Context, id int64) (Project, error) {
 	return item, err
 }
 
-// Create stores a project.
+// Create stores a project and its worker assignments.
 func (s *Service) Create(ctx context.Context, in Input) (Project, error) {
 	data, err := validate(in)
 	if err != nil {
 		return Project{}, err
 	}
+	workerIDs, err := normalizeWorkerIDs(in.WorkerIDs)
+	if err != nil {
+		return Project{}, err
+	}
 	data.CreatedAt = s.clock.Now().UTC().Format(time.RFC3339)
-	return insert(ctx, s.db, data)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Project{}, err
+	}
+	defer tx.Rollback()
+
+	ok, err := workersExist(ctx, tx, workerIDs)
+	if err != nil {
+		return Project{}, err
+	}
+	if !ok {
+		return Project{}, ErrInvalidWorker
+	}
+
+	id, err := insert(ctx, tx, data)
+	if err != nil {
+		return Project{}, err
+	}
+	if err := replaceWorkers(ctx, tx, id, workerIDs); err != nil {
+		return Project{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Project{}, err
+	}
+	return s.Get(ctx, id)
 }
 
-// Update replaces the editable fields of a project.
+// Update replaces the editable fields and the worker assignments of a project.
 func (s *Service) Update(ctx context.Context, id int64, in Input) (Project, error) {
 	if id <= 0 {
 		return Project{}, ErrNotFound
@@ -83,28 +114,47 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (Project, erro
 	if err != nil {
 		return Project{}, err
 	}
-	updated, err := update(ctx, s.db, id, data)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Project{}, ErrNotFound
+	workerIDs, err := normalizeWorkerIDs(in.WorkerIDs)
+	if err != nil {
+		return Project{}, err
 	}
-	return updated, err
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Project{}, err
+	}
+	defer tx.Rollback()
+
+	ok, err := workersExist(ctx, tx, workerIDs)
+	if err != nil {
+		return Project{}, err
+	}
+	if !ok {
+		return Project{}, ErrInvalidWorker
+	}
+
+	if err := update(ctx, tx, id, data); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Project{}, ErrNotFound
+		}
+		return Project{}, err
+	}
+	if err := replaceWorkers(ctx, tx, id, workerIDs); err != nil {
+		return Project{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Project{}, err
+	}
+	return s.Get(ctx, id)
 }
 
-// Delete removes an unused project. Projects tagged on attendance are kept so
-// history is not silently rewritten.
+// Delete removes a project. Its assignment rows are removed by cascade.
 func (s *Service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return ErrNotFound
 	}
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
-	}
-	used, err := usageCount(ctx, s.db, id)
-	if err != nil {
-		return err
-	}
-	if used > 0 {
-		return ErrInUse
 	}
 	if err := remove(ctx, s.db, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -115,8 +165,8 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// Timeline returns the month view: every relevant project plus the days it was
-// tagged on attendance within that month.
+// Timeline returns the month view: every relevant project plus the days its
+// assigned workers attended within that month.
 func (s *Service) Timeline(ctx context.Context, month string) (Timeline, error) {
 	start, err := time.Parse("2006-01", month)
 	if err != nil {
@@ -168,6 +218,25 @@ func relevant(item TimelineProject, first, last time.Time) bool {
 
 func daysInMonth(first time.Time) int {
 	return first.AddDate(0, 1, -1).Day()
+}
+
+// normalizeWorkerIDs sorts and deduplicates worker ids, rejecting non-positive
+// ids.
+func normalizeWorkerIDs(ids []int64) ([]int64, error) {
+	seen := make(map[int64]bool, len(ids))
+	result := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, ErrInvalidWorker
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		result = append(result, id)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result, nil
 }
 
 func validate(in Input) (projectData, error) {

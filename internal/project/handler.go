@@ -46,11 +46,12 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type request struct {
-	Name      string `json:"name"`
-	StartDate string `json:"start_date"`
-	EndDate   string `json:"end_date"`
-	Status    string `json:"status"`
-	Notes     string `json:"notes"`
+	Name      string  `json:"name"`
+	StartDate string  `json:"start_date"`
+	EndDate   string  `json:"end_date"`
+	Status    string  `json:"status"`
+	Notes     string  `json:"notes"`
+	WorkerIDs []int64 `json:"worker_ids"`
 }
 
 // Create adds a project.
@@ -87,7 +88,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, updated)
 }
 
-// Delete removes an unused project.
+// Delete removes a project and its worker assignments.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := projectID(w, r)
 	if !ok {
@@ -121,6 +122,7 @@ func (r request) input() Input {
 		EndDate:   r.EndDate,
 		Status:    r.Status,
 		Notes:     r.Notes,
+		WorkerIDs: r.WorkerIDs,
 	}
 }
 
@@ -145,11 +147,10 @@ func writeError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusBadRequest, "Catatan maksimal 500 karakter.")
 	case errors.Is(err, ErrInvalidMonth):
 		httpx.Error(w, http.StatusBadRequest, "Bulan tidak valid.")
+	case errors.Is(err, ErrInvalidWorker):
+		httpx.Error(w, http.StatusBadRequest, "Pekerja yang dipilih tidak ditemukan.")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "Proyek tidak ditemukan.")
-	case errors.Is(err, ErrInUse):
-		httpx.Error(w, http.StatusConflict,
-			"Proyek masih dipakai di absensi. Lepas tanda proyek dari absensi terlebih dahulu.")
 	default:
 		slog.Error("project request failed", "error", err)
 		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")
