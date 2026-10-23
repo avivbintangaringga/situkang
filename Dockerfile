@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 # 3. Minimal runtime image.
 FROM alpine:3.22 AS runtime
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata su-exec \
     && addgroup -S -g 10001 situkang \
     && adduser -S -u 10001 -G situkang situkang \
     && mkdir -p /data \
@@ -34,12 +34,13 @@ ENV TZ=Asia/Jakarta \
 
 WORKDIR /app
 COPY --from=build /out/situkang /app/situkang
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
-USER situkang
 EXPOSE 8080
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget -qO- http://127.0.0.1:8080/api/health > /dev/null || exit 1
 
-ENTRYPOINT ["/app/situkang"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
