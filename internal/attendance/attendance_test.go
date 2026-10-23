@@ -425,6 +425,99 @@ func TestCalendar(t *testing.T) {
 	}
 }
 
+func TestCalendarRangeAcrossMonths(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	addWorker(t, sqlDB, 1, "Budi", 100_000)
+	addWorker(t, sqlDB, 2, "Andi", 120_000)
+
+	if _, err := svc.SaveDay(ctx, "2026-01-30", []Item{{WorkerID: 1, Quarters: 4}}); err != nil {
+		t.Fatalf("SaveDay 2026-01-30: %v", err)
+	}
+	if _, err := svc.SaveDay(ctx, "2026-01-31", []Item{{WorkerID: 2, Quarters: 2}}); err != nil {
+		t.Fatalf("SaveDay 2026-01-31: %v", err)
+	}
+	if _, err := svc.SaveDay(ctx, "2026-02-02", []Item{{WorkerID: 1, Quarters: 3}}); err != nil {
+		t.Fatalf("SaveDay 2026-02-02: %v", err)
+	}
+
+	h := NewHandler(svc)
+	router := chi.NewRouter()
+	router.Get("/attendances/calendar", h.Calendar)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+		"/attendances/calendar?from=2026-01-30&to=2026-02-01", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	var result Calendar
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode calendar: %v", err)
+	}
+	if result.Month != "" {
+		t.Fatalf("month = %q, want empty for an explicit range", result.Month)
+	}
+	if result.Totals.Days != 2 {
+		t.Fatalf("days = %d, want 2", result.Totals.Days)
+	}
+	if result.Totals.Workers != 2 {
+		t.Fatalf("workers = %d, want 2", result.Totals.Workers)
+	}
+	if result.Totals.Earned != 160_000 {
+		t.Fatalf("earned = %d, want 160000", result.Totals.Earned)
+	}
+	if len(result.Days) != 2 ||
+		result.Days[0].Date != "2026-01-30" ||
+		result.Days[1].Date != "2026-01-31" {
+		t.Fatalf("days = %+v", result.Days)
+	}
+}
+
+func TestCalendarRangeRejectsReversedDates(t *testing.T) {
+	svc, _ := testService(t)
+	h := NewHandler(svc)
+	router := chi.NewRouter()
+	router.Get("/attendances/calendar", h.Calendar)
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+		"/attendances/calendar?from=2026-02-01&to=2026-01-01", nil))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Tanggal tidak valid") {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestCalendarRangeCapsAt62Days(t *testing.T) {
+	svc, _ := testService(t)
+	h := NewHandler(svc)
+	router := chi.NewRouter()
+	router.Get("/attendances/calendar", h.Calendar)
+
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, httptest.NewRequest(http.MethodGet,
+		"/attendances/calendar?from=2026-01-01&to=2026-03-03", nil))
+	if allowed.Code != http.StatusOK {
+		t.Fatalf("62-day status = %d, want 200: %s", allowed.Code, allowed.Body.String())
+	}
+
+	tooLong := httptest.NewRecorder()
+	router.ServeHTTP(tooLong, httptest.NewRequest(http.MethodGet,
+		"/attendances/calendar?from=2026-01-01&to=2026-03-04", nil))
+	if tooLong.Code != http.StatusBadRequest {
+		t.Fatalf("63-day status = %d, want 400: %s", tooLong.Code, tooLong.Body.String())
+	}
+	if !strings.Contains(tooLong.Body.String(), "maksimal 62 hari") {
+		t.Fatalf("body = %s", tooLong.Body.String())
+	}
+}
+
 func TestCalendarRejectsInvalidMonth(t *testing.T) {
 	svc, _ := testService(t)
 	h := NewHandler(svc)

@@ -18,6 +18,7 @@ var (
 	ErrInvalidWorker   = errors.New("invalid worker")
 	ErrDuplicateWorker = errors.New("duplicate worker in day")
 	ErrInvalidRange    = errors.New("invalid date range")
+	ErrRangeTooLong    = errors.New("date range exceeds 62 days")
 	ErrInvalidMonth    = errors.New("invalid month")
 )
 
@@ -182,11 +183,38 @@ func (s *Service) Calendar(ctx context.Context, month string) (Calendar, error) 
 	}
 	end := start.AddDate(0, 1, -1)
 
-	rows, err := calendarRows(ctx, s.db, clock.FormatDate(start), clock.FormatDate(end))
+	return s.calendarRange(ctx, month, start, end)
+}
+
+// CalendarRange returns recorded attendance for from through to, inclusive.
+// The range is capped at 62 days so a single request stays small.
+func (s *Service) CalendarRange(ctx context.Context, from, to string) (Calendar, error) {
+	start, err := clock.ParseDate(from)
+	if err != nil {
+		return Calendar{}, ErrInvalidDate
+	}
+	end, err := clock.ParseDate(to)
+	if err != nil {
+		return Calendar{}, ErrInvalidDate
+	}
+	if end.Before(start) {
+		return Calendar{}, ErrInvalidRange
+	}
+	if end.Sub(start) > 61*24*time.Hour {
+		return Calendar{}, ErrRangeTooLong
+	}
+
+	return s.calendarRange(ctx, "", start, end)
+}
+
+func (s *Service) calendarRange(ctx context.Context, month string, start, end time.Time) (Calendar, error) {
+	from, to := clock.FormatDate(start), clock.FormatDate(end)
+
+	rows, err := calendarRows(ctx, s.db, from, to)
 	if err != nil {
 		return Calendar{}, err
 	}
-	projects, err := workerProjects(ctx, s.db, clock.FormatDate(start), clock.FormatDate(end))
+	projects, err := workerProjects(ctx, s.db, from, to)
 	if err != nil {
 		return Calendar{}, err
 	}

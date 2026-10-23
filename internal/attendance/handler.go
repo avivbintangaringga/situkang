@@ -79,9 +79,31 @@ func (h *Handler) Week(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, entries)
 }
 
-// Calendar returns recorded attendance for one month.
+// Calendar returns recorded attendance for one month or an explicit range.
 func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
-	result, err := h.svc.Calendar(r.Context(), r.URL.Query().Get("month"))
+	query := r.URL.Query()
+	month, from, to := query.Get("month"), query.Get("from"), query.Get("to")
+
+	var (
+		result Calendar
+		err    error
+	)
+	switch {
+	case month != "":
+		if from != "" || to != "" {
+			httpx.Error(w, http.StatusBadRequest, "Tanggal tidak valid.")
+			return
+		}
+		result, err = h.svc.Calendar(r.Context(), month)
+	case from != "" || to != "":
+		if from == "" || to == "" {
+			httpx.Error(w, http.StatusBadRequest, "Tanggal tidak valid.")
+			return
+		}
+		result, err = h.svc.CalendarRange(r.Context(), from, to)
+	default:
+		err = ErrInvalidMonth
+	}
 	if err != nil {
 		writeError(w, err)
 		return
@@ -96,6 +118,8 @@ func writeError(w http.ResponseWriter, err error) {
 			"Data sudah masuk rekap dan terkunci. Buka kembali rekap untuk mengubahnya.")
 	case errors.Is(err, ErrInvalidDate), errors.Is(err, ErrInvalidRange):
 		httpx.Error(w, http.StatusBadRequest, "Tanggal tidak valid.")
+	case errors.Is(err, ErrRangeTooLong):
+		httpx.Error(w, http.StatusBadRequest, "Rentang tanggal maksimal 62 hari.")
 	case errors.Is(err, ErrInvalidMonth):
 		httpx.Error(w, http.StatusBadRequest, "Bulan tidak valid.")
 	case errors.Is(err, ErrInvalidQuarters):

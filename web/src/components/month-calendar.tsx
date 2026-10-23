@@ -31,6 +31,8 @@ type Props = {
   markers?: Record<string, CalendarMarker[]>
   /** Optional range tint, using YYYY-MM-DD dates. */
   range?: { start?: string | null; end?: string | null }
+  /** Highlighted day in YYYY-MM-DD form. */
+  selectedDate?: string | null
   onSelectDate?: (date: string) => void
   disabled?: boolean
 }
@@ -52,6 +54,7 @@ export function MonthCalendar({
   onMonthChange,
   markers,
   range,
+  selectedDate,
   onSelectDate,
   disabled,
 }: Props) {
@@ -112,6 +115,7 @@ export function MonthCalendar({
           const iso = format(day, 'yyyy-MM-dd')
           const outside = !isSameMonth(day, monthDate)
           const today = isToday(day)
+          const selected = selectedDate === iso
           const tinted = inRange(iso, range)
           const dayMarkers = markers?.[iso] ?? []
           const label = `${formatLongDate(iso)}${
@@ -148,6 +152,7 @@ export function MonthCalendar({
               ? 'text-muted-foreground/45'
               : 'text-foreground hover:bg-muted/60',
             tinted && !outside && 'border-primary/20 bg-primary/5',
+            selected && !outside && 'border-primary bg-primary/15 font-semibold',
             today && !outside && 'border-primary/60 ring-1 ring-primary/30',
             disabled && 'cursor-default opacity-60',
           )

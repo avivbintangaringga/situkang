@@ -55,10 +55,24 @@ export function useWorkerWeek(workerId: number, from: string, to: string) {
   })
 }
 
-export function useAttendanceCalendar(month: string) {
+export function useAttendanceCalendar(
+  month: string,
+  range?: { from: string; to: string } | null,
+) {
   return useQuery({
-    queryKey: ['attendance', 'calendar', month],
-    queryFn: () => api.get<AttendanceCalendar>(`/attendances/calendar?month=${month}`),
+    queryKey: [
+      'attendance',
+      'calendar',
+      range ? 'range' : 'month',
+      range ? range.from : month,
+      range?.to ?? '',
+    ],
+    queryFn: () =>
+      api.get<AttendanceCalendar>(
+        range
+          ? `/attendances/calendar?from=${range.from}&to=${range.to}`
+          : `/attendances/calendar?month=${month}`,
+      ),
     staleTime: 30 * 1000,
   })
 }
