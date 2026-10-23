@@ -123,7 +123,7 @@ export function RekapDetailPage() {
         </div>
       </div>
 
-      <div className="bg-muted/40 grid grid-cols-2 gap-3 rounded-xl border p-4">
+      <div className="bg-muted/40 grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4">
         <div>
           <p className="text-muted-foreground text-xs">Gaji kotor</p>
           <p className="font-medium">{formatRupiah(totals.gross)}</p>

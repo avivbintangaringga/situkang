@@ -289,7 +289,7 @@ export function AbsensiPage() {
               <div
                 role="group"
                 aria-label={`Absensi ${row.name}`}
-                className="bg-muted/60 flex gap-0.5 rounded-full p-0.5"
+                className="bg-muted/60 flex gap-0.5 rounded-full p-0.5 sm:max-w-md"
               >
                 {(quarterOptions.includes(row.quarters)
                   ? quarterOptions
