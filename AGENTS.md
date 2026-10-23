@@ -73,6 +73,8 @@ make run          # ./scripts/run.sh: rebuild web + server, then run (Ctrl+C to 
 make test         # go test ./...  and  cd web && bun run typecheck
 make lint         # go vet ./...  and  cd web && bun run lint
 make create-admin # go run ./cmd/situkang create-admin  (prompts for username/password)
+make docker-build # docker build -t situkang:latest .
+make docker-up    # docker compose up --build  (needs SESSION_SECRET in .env)
 ```
 
 Before declaring any task done, run `make test` and `make lint` and fix failures. If a command in this list does not exist yet, create it in the Makefile as part of the task.

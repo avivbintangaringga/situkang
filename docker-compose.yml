@@ -1,0 +1,15 @@
+services:
+  situkang:
+    build: .
+    image: situkang:latest
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Jakarta
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env first}
+    volumes:
+      - situkang-data:/data
+    restart: unless-stopped
+
+volumes:
+  situkang-data:

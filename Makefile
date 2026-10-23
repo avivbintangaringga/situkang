@@ -1,4 +1,4 @@
-.PHONY: prepare dev-api dev-web build run test lint create-admin
+.PHONY: prepare dev-api dev-web build run test lint create-admin docker-build docker-up
 
 # go:embed needs web/dist to exist before any Go command runs. In development the
 # frontend is served by Vite, so a placeholder index.html is enough.
@@ -29,3 +29,9 @@ lint: prepare
 
 create-admin: prepare
 	go run ./cmd/situkang create-admin
+
+docker-build:
+	docker build -t situkang:latest .
+
+docker-up:
+	docker compose up --build
