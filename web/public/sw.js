@@ -1,6 +1,6 @@
 // Minimal app-shell service worker. API calls always go to the network;
 // navigation is network-first so a deploy is picked up immediately.
-const CACHE = 'situkang-shell-v4'
+const CACHE = 'situkang-shell-v5'
 const SHELL = [
   '/',
   '/manifest.webmanifest',
