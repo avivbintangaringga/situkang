@@ -21,9 +21,13 @@ function currentMonth(): string {
   return format(new Date(), 'yyyy-MM')
 }
 
+function today(): string {
+  return format(new Date(), 'yyyy-MM-dd')
+}
+
 export function AttendanceCalendarPage() {
   const [month, setMonth] = useState(currentMonth)
-  const [selectionStart, setSelectionStart] = useState<string | null>(null)
+  const [selectionStart, setSelectionStart] = useState<string | null>(today)
   const [selectionEnd, setSelectionEnd] = useState<string | null>(null)
 
   const isRange =
