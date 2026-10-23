@@ -1,6 +1,9 @@
+import { format, parseISO } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
+
 /**
- * Rupiah and number formatting. Money is always an integer number of rupiah;
- * the UI only adds separators for display.
+ * Rupiah, number, and date formatting. Money is always an integer number of
+ * rupiah; the UI only adds separators for display.
  */
 
 export function digitsOnly(value: string): string {
@@ -18,4 +21,35 @@ export function formatRupiah(value: number): string {
   const safe = Number.isFinite(value) ? Math.trunc(value) : 0
   const sign = safe < 0 ? '-' : ''
   return `${sign}Rp ${formatThousands(String(Math.abs(safe)))}`
+}
+
+/** Formats a YYYY-MM-DD date as "Sen, 12 Jan 2026". */
+export function formatDate(value: string): string {
+  return format(parseISO(value), 'EEE, d MMM yyyy', { locale: localeId })
+}
+
+/** Formats a YYYY-MM-DD date as "12 Jan". */
+export function formatDateShort(value: string): string {
+  return format(parseISO(value), 'd MMM', { locale: localeId })
+}
+
+/** Today in the device timezone, as YYYY-MM-DD. */
+export function todayISO(): string {
+  return format(new Date(), 'yyyy-MM-dd')
+}
+
+/** Turns a quarters value into its Indonesian day label. */
+export function quartersLabel(quarters: number): string {
+  switch (quarters) {
+    case 1:
+      return '¼ hari'
+    case 2:
+      return '½ hari'
+    case 3:
+      return '¾ hari'
+    case 4:
+      return 'Penuh'
+    default:
+      return 'Absen'
+  }
 }

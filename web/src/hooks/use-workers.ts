@@ -29,6 +29,14 @@ export function useWorkers(search: string, includeInactive: boolean) {
   })
 }
 
+export function useWorker(id: number) {
+  return useQuery({
+    queryKey: ['workers', 'detail', id],
+    queryFn: () => api.get<Worker>(`/workers/${id}`),
+    enabled: id > 0,
+  })
+}
+
 function useInvalidateWorkers() {
   const queryClient = useQueryClient()
   return () => queryClient.invalidateQueries({ queryKey: ['workers'] })

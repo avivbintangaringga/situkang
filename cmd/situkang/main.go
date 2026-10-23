@@ -22,7 +22,9 @@ import (
 	"golang.org/x/term"
 
 	situkang "situkang"
+	"situkang/internal/attendance"
 	"situkang/internal/auth"
+	"situkang/internal/cashadvance"
 	"situkang/internal/clock"
 	"situkang/internal/config"
 	"situkang/internal/db"
@@ -65,6 +67,8 @@ func run() error {
 	appClock := clock.New(cfg.Location)
 	authSvc := auth.NewService(sqlDB, appClock)
 	workerSvc := worker.NewService(sqlDB, appClock)
+	attendanceSvc := attendance.NewService(sqlDB, appClock)
+	cashAdvanceSvc := cashadvance.NewService(sqlDB, appClock)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -80,7 +84,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, workerSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -113,9 +117,11 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
 	workerHandler := worker.NewHandler(workerSvc)
+	attendanceHandler := attendance.NewHandler(attendanceSvc)
+	cashAdvanceHandler := cashadvance.NewHandler(cashAdvanceSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -144,6 +150,15 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Get("/workers/{id}", workerHandler.Get)
 			protected.Put("/workers/{id}", workerHandler.Update)
 			protected.Delete("/workers/{id}", workerHandler.Delete)
+
+			protected.Get("/attendances", attendanceHandler.Week)
+			protected.Get("/attendances/day", attendanceHandler.Day)
+			protected.Put("/attendances/day/{date}", attendanceHandler.SaveDay)
+
+			protected.Get("/cash-advances", cashAdvanceHandler.List)
+			protected.Post("/cash-advances", cashAdvanceHandler.Create)
+			protected.Put("/cash-advances/{id}", cashAdvanceHandler.Update)
+			protected.Delete("/cash-advances/{id}", cashAdvanceHandler.Delete)
 		})
 	})
 

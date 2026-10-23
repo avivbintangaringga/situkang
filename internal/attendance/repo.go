@@ -1,0 +1,189 @@
+package attendance
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+)
+
+// DayRow is one worker on the attendance screen for a single date.
+type DayRow struct {
+	WorkerID int64  `json:"worker_id"`
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	DailyFee int64  `json:"daily_fee"`
+	Quarters int    `json:"quarters"` // 0 means absent
+	Snapshot int64  `json:"snapshot"`
+	Earned   int64  `json:"earned"`
+	Locked   bool   `json:"locked"`
+}
+
+// WeekEntry is one recorded day for a worker.
+type WeekEntry struct {
+	ID       int64  `json:"id"`
+	Date     string `json:"date"`
+	Quarters int    `json:"quarters"`
+	Earned   int64  `json:"earned"`
+	Locked   bool   `json:"locked"`
+}
+
+type record struct {
+	ID       int64
+	WorkerID int64
+	Quarters int
+	Snapshot int64
+	RecapID  *int64
+}
+
+func day(ctx context.Context, db *sql.DB, date string) ([]DayRow, error) {
+	const query = `
+		SELECT w.id, w.name, w.role, w.daily_fee,
+		       a.id, a.quarters, a.daily_fee_snapshot, a.recap_id
+		FROM workers w
+		LEFT JOIN attendances a ON a.worker_id = w.id AND a.date = ?
+		WHERE w.active = 1
+		ORDER BY w.name COLLATE NOCASE`
+
+	rows, err := db.QueryContext(ctx, query, date)
+	if err != nil {
+		return nil, fmt.Errorf("load attendance day: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]DayRow, 0)
+	for rows.Next() {
+		var (
+			row      DayRow
+			id       sql.NullInt64
+			quarters sql.NullInt64
+			snapshot sql.NullInt64
+			recapID  sql.NullInt64
+		)
+		if err := rows.Scan(&row.WorkerID, &row.Name, &row.Role, &row.DailyFee,
+			&id, &quarters, &snapshot, &recapID); err != nil {
+			return nil, fmt.Errorf("scan attendance day: %w", err)
+		}
+		row.Snapshot = row.DailyFee
+		if quarters.Valid {
+			row.Snapshot = snapshot.Int64
+			row.Quarters = int(quarters.Int64)
+			row.Earned = earned(snapshot.Int64, row.Quarters)
+			row.Locked = recapID.Valid
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load attendance day: %w", err)
+	}
+	return result, nil
+}
+
+func recordsForDate(ctx context.Context, q queryer, date string) (map[int64]record, error) {
+	const query = `SELECT id, worker_id, quarters, daily_fee_snapshot, recap_id FROM attendances WHERE date = ?`
+
+	rows, err := q.QueryContext(ctx, query, date)
+	if err != nil {
+		return nil, fmt.Errorf("load attendance records: %w", err)
+	}
+	defer rows.Close()
+
+	records := make(map[int64]record)
+	for rows.Next() {
+		var (
+			rec     record
+			recapID sql.NullInt64
+		)
+		if err := rows.Scan(&rec.ID, &rec.WorkerID, &rec.Quarters, &rec.Snapshot, &recapID); err != nil {
+			return nil, fmt.Errorf("scan attendance record: %w", err)
+		}
+		if recapID.Valid {
+			value := recapID.Int64
+			rec.RecapID = &value
+		}
+		records[rec.WorkerID] = rec
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load attendance records: %w", err)
+	}
+	return records, nil
+}
+
+func insert(ctx context.Context, q execer, workerID int64, date string, quarters int, snapshot int64, now string) error {
+	const query = `INSERT INTO attendances (worker_id, date, quarters, daily_fee_snapshot, created_at) VALUES (?, ?, ?, ?, ?)`
+
+	if _, err := q.ExecContext(ctx, query, workerID, date, quarters, snapshot, now); err != nil {
+		return fmt.Errorf("insert attendance: %w", err)
+	}
+	return nil
+}
+
+func updateQuarters(ctx context.Context, q execer, id int64, quarters int) error {
+	if _, err := q.ExecContext(ctx, `UPDATE attendances SET quarters = ? WHERE id = ?`, quarters, id); err != nil {
+		return fmt.Errorf("update attendance: %w", err)
+	}
+	return nil
+}
+
+func remove(ctx context.Context, q execer, id int64) error {
+	if _, err := q.ExecContext(ctx, `DELETE FROM attendances WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete attendance: %w", err)
+	}
+	return nil
+}
+
+func workerFee(ctx context.Context, q queryer, workerID int64) (int64, bool, error) {
+	const query = `SELECT daily_fee, active FROM workers WHERE id = ?`
+
+	var (
+		fee    int64
+		active bool
+	)
+	err := q.QueryRowContext(ctx, query, workerID).Scan(&fee, &active)
+	return fee, active, err
+}
+
+func week(ctx context.Context, db *sql.DB, workerID int64, from, to string) ([]WeekEntry, error) {
+	const query = `
+		SELECT id, date, quarters, daily_fee_snapshot, recap_id
+		FROM attendances
+		WHERE worker_id = ? AND date BETWEEN ? AND ?
+		ORDER BY date`
+
+	rows, err := db.QueryContext(ctx, query, workerID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("load attendance week: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]WeekEntry, 0)
+	for rows.Next() {
+		var (
+			entry    WeekEntry
+			snapshot int64
+			recapID  sql.NullInt64
+		)
+		if err := rows.Scan(&entry.ID, &entry.Date, &entry.Quarters, &snapshot, &recapID); err != nil {
+			return nil, fmt.Errorf("scan attendance week: %w", err)
+		}
+		entry.Earned = earned(snapshot, entry.Quarters)
+		entry.Locked = recapID.Valid
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load attendance week: %w", err)
+	}
+	return entries, nil
+}
+
+func earned(snapshot int64, quarters int) int64 {
+	return snapshot * int64(quarters) / 4
+}
+
+type queryer interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
