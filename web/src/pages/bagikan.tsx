@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePublicRecap } from '@/hooks/use-recap-share'
 import { formatDate, formatDays, formatRupiah } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 /**
  * Public read-only recap page. It lives outside the auth guard and the app
@@ -56,9 +57,21 @@ export function BagikanPage() {
               <p className="text-muted-foreground text-sm">
                 Periode {formatDate(data.period_start)} - {formatDate(data.period_end)}
               </p>
-              <span className="bg-muted text-muted-foreground inline-block rounded-full px-2 py-0.5 text-xs">
-                Rekap final
+              <span
+                className={cn(
+                  'inline-block rounded-full px-2 py-0.5 text-xs',
+                  data.recap.status === 'draft'
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {data.recap.status === 'draft' ? 'Draft' : 'Rekap final'}
               </span>
+              {data.recap.status === 'draft' && (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Masih draft, nominal dapat berubah sampai rekap difinalkan.
+                </p>
+              )}
             </section>
 
             <section className="bg-background grid grid-cols-2 gap-3 rounded-xl border p-4 shadow-sm sm:grid-cols-4">
