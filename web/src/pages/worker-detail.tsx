@@ -120,7 +120,7 @@ export function WorkerDetailPage() {
                         )}
                       </div>
                       <span className="shrink-0 text-sm font-medium">
-                        {entry ? formatRupiah(entry.earned) : '—'}
+                        {entry ? formatRupiah(entry.earned) : '-'}
                       </span>
                     </li>
                   )

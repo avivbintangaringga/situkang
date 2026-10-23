@@ -148,6 +148,7 @@ export type RecapDetail = {
 
 export type Settings = {
   working_days: number[]
+  attendance_fractions: number[]
 }
 
 export type DashboardWorker = {

@@ -32,7 +32,11 @@ export function useSaveDay() {
       api.put<AttendanceDay>(`/attendances/day/${date}`, { items }),
     onSuccess: (day) => {
       queryClient.setQueryData(attendanceDayQueryKey(day.date), day)
+      // The screen may be reading the day under the "today" key, so refresh
+      // every attendance query instead of only the dated one.
+      void queryClient.invalidateQueries({ queryKey: ['attendance'] })
       void queryClient.invalidateQueries({ queryKey: ['workers'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }

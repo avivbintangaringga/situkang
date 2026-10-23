@@ -1,4 +1,4 @@
--- 0001_init.sql — initial schema for SiTukang.
+-- 0001_init.sql - initial schema for SiTukang.
 -- Money is INTEGER rupiah. Dates are TEXT 'YYYY-MM-DD'. Timestamps are RFC3339 UTC.
 
 CREATE TABLE users (

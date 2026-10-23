@@ -13,13 +13,13 @@ import { useSettings } from '@/hooks/use-settings'
 import { formatDate, formatRupiah, todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const quarterOptions = [
-  { value: 0, label: '—', aria: 'Absen' },
-  { value: 1, label: '¼', aria: 'Seperempat hari' },
-  { value: 2, label: '½', aria: 'Setengah hari' },
-  { value: 3, label: '¾', aria: 'Tiga per empat hari' },
-  { value: 4, label: '1', aria: 'Sehari penuh' },
-]
+const fractionOptions = {
+  0: { label: 'Absen', aria: 'Absen', text: 'text-xs' },
+  1: { label: '1/4', aria: 'Seperempat hari', text: 'text-sm' },
+  2: { label: '1/2', aria: 'Setengah hari', text: 'text-sm' },
+  3: { label: '3/4', aria: 'Tiga per empat hari', text: 'text-sm' },
+  4: { label: '1', aria: 'Sehari penuh', text: 'text-sm' },
+} as const
 
 export function AbsensiPage() {
   const [date, setDate] = useState<string | null>(null)
@@ -68,7 +68,24 @@ export function AbsensiPage() {
 
       saveDay(
         { date: currentDate, items },
-        { onSuccess: () => setDirty(false) },
+        {
+          onSuccess: (saved) => {
+            // Show the server result immediately; the cache may live under a
+            // different "today" key than the saved date.
+            setDraft(
+              Object.fromEntries(saved.workers.map((worker) => [worker.worker_id, worker.quarters])),
+            )
+            setProjectDraft(
+              Object.fromEntries(
+                saved.workers.map((worker) => [
+                  worker.worker_id,
+                  worker.projects.map((project) => project.id),
+                ]),
+              ),
+            )
+            setDirty(false)
+          },
+        },
       )
     }, 600)
 
@@ -90,6 +107,11 @@ export function AbsensiPage() {
     setDirty(false)
     setDate(format(addDays(parseISO(currentDate), days), 'yyyy-MM-dd'))
   }
+
+  const enabledFractions = settings.data?.attendance_fractions ?? [1, 2, 3]
+  const quarterOptions = [0, 1, 2, 3, 4].filter(
+    (value) => value === 0 || value === 4 || enabledFractions.includes(value),
+  )
 
   const workers = data?.workers ?? []
   const projectList = projects.data ?? []
@@ -159,7 +181,7 @@ export function AbsensiPage() {
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
-            {currentDate ? formatDate(currentDate) : '—'}
+            {currentDate ? formatDate(currentDate) : '-'}
             {isNonWorkingDay && (
               <span className="text-muted-foreground font-normal"> · Hari libur</span>
             )}
@@ -264,20 +286,32 @@ export function AbsensiPage() {
               <div
                 role="group"
                 aria-label={`Absensi ${row.name}`}
-                className="grid grid-cols-5 gap-1"
+                className="grid gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${
+                    quarterOptions.includes(row.quarters)
+                      ? quarterOptions.length
+                      : quarterOptions.length + 1
+                  }, minmax(0, 1fr))`,
+                }}
               >
-                {quarterOptions.map((option) => {
-                  const active = row.quarters === option.value
+                {(quarterOptions.includes(row.quarters)
+                  ? quarterOptions
+                  : [...quarterOptions, row.quarters].sort((a, b) => a - b)
+                ).map((value) => {
+                  const option = fractionOptions[value as keyof typeof fractionOptions]
+                  const active = row.quarters === value
                   return (
                     <button
-                      key={option.value}
+                      key={value}
                       type="button"
                       disabled={row.locked}
                       aria-pressed={active}
                       aria-label={option.aria}
-                      onClick={() => setQuarters(row.worker_id, option.value)}
+                      onClick={() => setQuarters(row.worker_id, value)}
                       className={cn(
-                        'h-11 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50',
+                        'h-11 rounded-lg border font-medium transition-colors disabled:opacity-50',
+                        option.text,
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'hover:bg-muted',
@@ -330,7 +364,7 @@ export function AbsensiPage() {
       />
 
       <p className="text-muted-foreground text-xs">
-        — absen · ¼ seperempat · ½ setengah · ¾ tiga per empat · 1 penuh
+        Bagian hari yang tampil bisa diubah di Pengaturan.
       </p>
     </div>
   )

@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-const workingDaysKey = "working_days"
+const (
+	workingDaysKey = "working_days"
+	fractionsKey   = "attendance_fractions"
+)
 
 func getValue(ctx context.Context, db *sql.DB, key string) (string, error) {
 	var value string
@@ -37,7 +40,7 @@ func parseDays(raw string) ([]int, error) {
 		}
 		day, err := strconv.Atoi(value)
 		if err != nil {
-			return nil, fmt.Errorf("parse working days: %w", err)
+			return nil, fmt.Errorf("parse setting list: %w", err)
 		}
 		days = append(days, day)
 	}

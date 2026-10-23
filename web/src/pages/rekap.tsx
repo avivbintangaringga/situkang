@@ -140,7 +140,7 @@ export function RekapPage() {
                   </div>
                   <p className="text-muted-foreground truncate text-sm">
                     {recap.start_date && recap.end_date
-                      ? `${formatDateShort(recap.start_date)} – ${formatDate(recap.end_date)}`
+                      ? `${formatDateShort(recap.start_date)} - ${formatDate(recap.end_date)}`
                       : 'Semua yang belum dibayar'}
                   </p>
                 </div>

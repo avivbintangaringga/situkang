@@ -118,7 +118,7 @@ export function RekapDetailPage() {
             </span>
           </div>
           <p className="text-muted-foreground text-sm">
-            {formatDate(data.period_start)} – {formatDate(data.period_end)}
+            {formatDate(data.period_start)} - {formatDate(data.period_end)}
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-# AGENTS.md — SiTukang (Sistem Informasi Tukang)
+# AGENTS.md - SiTukang (Sistem Informasi Tukang)
 
 Read this whole file before writing any code. Follow it literally. If something here conflicts with your instincts, this file wins. If something is not covered, choose the simplest option and note the assumption in your final message. Do not ask for confirmation on small things.
 
@@ -90,11 +90,12 @@ Config via env vars (with defaults): `PORT=8080`, `DB_PATH=./data/situkang.db`, 
 
 ### 5.2 Attendance
 - One attendance record per worker per date. Enforce with `UNIQUE(worker_id, date)`.
-- Attendance amount is stored as **`quarters` INTEGER 1–4**: 1 = ¼ hari, 2 = ½ hari, 3 = ¾ hari, 4 = penuh. **Default is 4.** Absent = no record at all (never store 0).
+- Attendance amount is stored as **`quarters` INTEGER 1-4**: 1 = ¼ hari, 2 = ½ hari, 3 = ¾ hari, 4 = penuh. **Default is 4.** Absent = no record at all (never store 0).
+- The ¼, ½, and ¾ options can be enabled or disabled in settings (`attendance_fractions`, default `1,2,3`). Full day and absent are always available. Stored data still accepts 1-4, so disabling an option never invalidates existing rows; the UI must still show a record's current value even when its option is disabled.
 - **Snapshot the fee**: each attendance row stores `daily_fee_snapshot` (copied from the worker's `daily_fee` at the time of recording). Changing a worker's fee later must NOT change existing attendance.
 - Earned amount for a record = `daily_fee_snapshot * quarters / 4` using integer division (floor). Sum these per record; do not multiply the total.
-- The fee is per worker per day, **regardless of how many projects** the worker was on. Projects are only tags on the attendance record (many-to-many via `attendance_projects`). Project tags never change the amount. Consequence: the project timeline (§9 step 8) is a record of what actually happened, not a plan — do not model planned assignments.
-- Working days default to Monday–Saturday (configurable setting `working_days`, stored as a list of weekday numbers). This only controls which days are shown/highlighted by default. **Recording attendance on a non-working day (e.g. Sunday) must still be allowed.**
+- The fee is per worker per day, **regardless of how many projects** the worker was on. Projects are only tags on the attendance record (many-to-many via `attendance_projects`). Project tags never change the amount. Consequence: the project timeline (§9 step 8) is a record of what actually happened, not a plan - do not model planned assignments.
+- Working days default to Monday-Saturday (configurable setting `working_days`, stored as a list of weekday numbers). This only controls which days are shown/highlighted by default. **Recording attendance on a non-working day (e.g. Sunday) must still be allowed.**
 
 ### 5.3 Dates and time
 - Dates are date-only strings `YYYY-MM-DD` in the **Asia/Jakarta** timezone. Store as `TEXT` in SQLite. Never store attendance dates as timestamps.
@@ -109,7 +110,7 @@ Config via env vars (with defaults): `PORT=8080`, `DB_PATH=./data/situkang.db`, 
 - Every attendance, kas bon, and extra fee has a nullable `recap_id`. **`recap_id IS NULL` means unsettled.**
 - There is NO "paid through" date on workers. Never add one.
 - A worker not paid in a recap simply keeps their items unsettled; those items show up in the next recap automatically.
-- A worker with `active = 0` (soft-deleted) who still has unsettled items **must still appear in recaps** — their money must be payable. Never filter recap contents by `active`.
+- A worker with `active = 0` (soft-deleted) who still has unsettled items **must still appear in recaps** - their money must be payable. Never filter recap contents by `active`.
 
 ### 5.6 Recaps
 A recap has `status`: `draft` or `final`.
@@ -152,7 +153,7 @@ For workers with `paid = false`: their extra fees for this draft are detached (`
 
 ### 5.7 Exports (from a finalized recap, or a draft as preview)
 - **Excel**: generated server-side with excelize at `GET /api/recaps/{id}/export.xlsx`. One summary sheet (all workers) plus optionally one detail sheet with per-day attendance. Rupiah cells use number format, not strings.
-- **Periode label** (both exports and UI): derive it from the items actually included for that worker — earliest attendance/kas bon date to latest — never from the recap `mode`. For `all_unsettled` a worker catching up may span several weeks; the label must show that honestly (`06 Jan 2026 - 18 Jan 2026`). If a worker has no dated items (extra fees only), show the recap's `created_at` date.
+- **Periode label** (both exports and UI): derive it from the items actually included for that worker - earliest attendance/kas bon date to latest - never from the recap `mode`. For `all_unsettled` a worker catching up may span several weeks; the label must show that honestly (`06 Jan 2026 - 18 Jan 2026`). If a worker has no dated items (extra fees only), show the recap's `created_at` date.
 - **WhatsApp**: server returns formatted plain text at `GET /api/recaps/{id}/whatsapp?worker_id=` (per worker, or all workers if omitted). The frontend offers a **Salin** (copy) button and a **Kirim WA** button that opens `https://wa.me/?text=<urlencoded>`. No WhatsApp API.
 
 WhatsApp text format (per worker):
@@ -176,17 +177,17 @@ Use Indonesian decimal comma for fractional days (`5,5`, `5,25`, `5,75`).
 Create in `migrations/0001_init.sql`. Use `STRICT` tables where possible. Enable `PRAGMA foreign_keys = ON` and `journal_mode = WAL` at connection open.
 
 - `users(id, username UNIQUE, password_hash, created_at)`
-- `sessions(id TEXT PK, user_id, expires_at, created_at)` — `id` stores the **SHA-256 hash** of the cookie token, never the raw token
-- `settings(key PK, value)` — e.g. `working_days` = `1,2,3,4,5,6`
-- `workers(id, name, role, daily_fee INTEGER, active INTEGER DEFAULT 1, created_at)` — **soft delete only** (set `active = 0`); never hard-delete a worker with history
-- `projects(id, name, start_date, end_date, status, notes, created_at)` — status: `aktif` | `selesai` | `ditunda`
+- `sessions(id TEXT PK, user_id, expires_at, created_at)` - `id` stores the **SHA-256 hash** of the cookie token, never the raw token
+- `settings(key PK, value)` - e.g. `working_days` = `1,2,3,4,5,6`, `attendance_fractions` = `1,2,3`
+- `workers(id, name, role, daily_fee INTEGER, active INTEGER DEFAULT 1, created_at)` - **soft delete only** (set `active = 0`); never hard-delete a worker with history
+- `projects(id, name, start_date, end_date, status, notes, created_at)` - status: `aktif` | `selesai` | `ditunda`
 - `attendances(id, worker_id, date, quarters CHECK 1..4, daily_fee_snapshot, recap_id NULL, created_at, UNIQUE(worker_id, date))`
 - `attendance_projects(attendance_id, project_id, PRIMARY KEY(attendance_id, project_id))`
-- `cash_advances(id, worker_id, date, amount CHECK > 0, note, recap_id NULL, source_recap_id NULL, created_at)` — `source_recap_id` is set only on the automatic "Saldo sebelumnya" kas bon and points at the recap that created it
-- `recaps(id, mode, start_date NULL, end_date NULL, status, created_at, finalized_at NULL)` — `mode` is `since_monday` | `all_unsettled` | `custom`
+- `cash_advances(id, worker_id, date, amount CHECK > 0, note, recap_id NULL, source_recap_id NULL, created_at)` - `source_recap_id` is set only on the automatic "Saldo sebelumnya" kas bon and points at the recap that created it
+- `recaps(id, mode, start_date NULL, end_date NULL, status, created_at, finalized_at NULL)` - `mode` is `since_monday` | `all_unsettled` | `custom`
 - `recap_lines(id, recap_id, worker_id, worker_name, worker_role, days_quarters, gross, advances, extras, net)`
-- `recap_paid(recap_id, worker_id, paid INTEGER DEFAULT 1, PRIMARY KEY(recap_id, worker_id))` — the draft's per-worker `paid` toggle; a missing row means `paid = true`. Rows are kept after finalize (they record which workers were skipped) and survive reopen. Cascade-delete with the recap.
-- `extra_fees(id, worker_id, recap_id NULL, amount, description, created_at)` — `recap_id` is nullable because `paid = false` workers have their extras detached on finalize
+- `recap_paid(recap_id, worker_id, paid INTEGER DEFAULT 1, PRIMARY KEY(recap_id, worker_id))` - the draft's per-worker `paid` toggle; a missing row means `paid = true`. Rows are kept after finalize (they record which workers were skipped) and survive reopen. Cascade-delete with the recap.
+- `extra_fees(id, worker_id, recap_id NULL, amount, description, created_at)` - `recap_id` is nullable because `paid = false` workers have their extras detached on finalize
 
 Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`.
 
@@ -195,15 +196,15 @@ Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_ad
 - All routes under `/api`. JSON in/out. Chi router, middleware: request logger, recoverer, session auth (everything except `POST /api/auth/login` and `GET /api/health`, which are public).
 - Auth: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`. Session id in an `HttpOnly`, `SameSite=Lax`, `Secure` (when not localhost) cookie, 30-day expiry. Password hashed with bcrypt. Mutating routes accept only `application/json`.
 - Errors always: `{"error": "<pesan dalam Bahasa Indonesia>"}` with a correct status code (400 validation, 401, 404, 409 conflict/locked, 500).
-- Validate every input on the server. Never trust the client. Minimum rules: worker `name` required (1–100 chars), `role` required, `daily_fee >= 0`; project `name` required, `status` in `aktif|selesai|ditunda`, `end_date >= start_date` when both are set; kas bon `amount > 0`; extra fee `description` required and `amount != 0`; `quarters` in 1–4; dates must be real calendar dates in `YYYY-MM-DD`.
+- Validate every input on the server. Never trust the client. Minimum rules: worker `name` required (1-100 chars), `role` required, `daily_fee >= 0`; project `name` required, `status` in `aktif|selesai|ditunda`, `end_date >= start_date` when both are set; kas bon `amount > 0`; extra fee `description` required and `amount != 0`; `quarters` in 1-4; dates must be real calendar dates in `YYYY-MM-DD`.
 - Use database transactions for anything that writes to more than one table.
 - Routes (REST, plural nouns): `/api/workers`, `/api/projects`, `/api/attendances` (query by `date` or `from`/`to`), `/api/cash-advances`, `/api/settings`, `/api/dashboard` (unsettled total per worker for Beranda), and:
   - `GET /api/recaps` (list, newest first), `POST /api/recaps` (create draft), `GET /api/recaps/{id}`, `DELETE /api/recaps/{id}` (draft only)
-  - `PATCH /api/recaps/{id}/paid` with `{worker_id, paid}` — toggles the draft's per-worker `paid` flag
+  - `PATCH /api/recaps/{id}/paid` with `{worker_id, paid}` - toggles the draft's per-worker `paid` flag
   - `PATCH /api/recaps/{id}/extra-fees/{feeId}`, `DELETE /api/recaps/{id}/extra-fees/{feeId}`, `POST /api/recaps/{id}/extra-fees`
   - `POST /api/recaps/{id}/finalize`, `POST /api/recaps/{id}/reopen`
   - `GET /api/recaps/{id}/export.xlsx`, `GET /api/recaps/{id}/whatsapp`
-- Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters, project_ids}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error — the record simply stays.
+- Attendance has a convenience endpoint to record a whole day at once: `PUT /api/attendances/day/{date}` with a list of `{worker_id, quarters, project_ids}`; workers omitted from the list have their record for that day removed. If any listed change would touch a locked record (non-NULL `recap_id` pointing at a final recap), reject the **whole request** with 409 and the locked message. Omitting a worker whose record is locked is a no-op, not an error - the record simply stays.
 
 ## 8. Frontend rules
 
@@ -225,10 +226,10 @@ Build in this order, one step at a time. Finish, test, and commit each step befo
 3. **Workers**: CRUD (soft delete), list/search, form.
 4. **Attendance**: day screen, `PUT /attendances/day/{date}`, fee snapshot, week view per worker.
 5. **Kas bon**: CRUD (respecting lock rule), per-worker list.
-6. **Recap core**: create draft (3 modes + warning, default `all_unsettled`), live calculation, `paid` toggle persisted in `recap_paid`, extra fees, finalize, locking, reopen. **Write Go unit tests for the calculation, settlement, carry-forward, and reopen logic** — this is the one place bugs cost real money.
+6. **Recap core**: create draft (3 modes + warning, default `all_unsettled`), live calculation, `paid` toggle persisted in `recap_paid`, extra fees, finalize, locking, reopen. **Write Go unit tests for the calculation, settlement, carry-forward, and reopen logic** - this is the one place bugs cost real money.
 7. **Exports**: Excel and WhatsApp text.
-8. **Projects**: list/CRUD with status and dates, tag projects on attendance, show project on worker/day views, plus the **timeline/calendar view**: a read-only month view drawing each project's `start_date`–`end_date` bar overlaid with the days workers were tagged on it. Derived entirely from existing data — no planning or assignment table, no drag-and-drop editing.
-9. **Settings**: working days.
+8. **Projects**: list/CRUD with status and dates, tag projects on attendance, show project on worker/day views, plus the **timeline/calendar view**: a read-only month view drawing each project's `start_date`-`end_date` bar overlaid with the days workers were tagged on it. Derived entirely from existing data - no planning or assignment table, no drag-and-drop editing.
+9. **Settings**: working days and which attendance fractions (1/4, 1/2, 3/4) are enabled.
 10. **Polish**: dashboard (Beranda: unsettled total per worker), mobile QA pass.
 
 **v2 (do NOT build now)**: Gantt-style editing and planned project assignments, multi-admin roles, worker self-service, notifications, anything with a WhatsApp API.
@@ -254,7 +255,7 @@ Build in this order, one step at a time. Finish, test, and commit each step befo
 
 ## 11. How to work
 
-- Work in small steps. Before editing, state in 2–4 lines what you will change and in which files.
+- Work in small steps. Before editing, state in 2-4 lines what you will change and in which files.
 - Read existing code in the package before adding to it; follow its patterns instead of inventing new ones.
 - Prefer boring, explicit code over clever abstractions. No premature generics.
 - After changes: run `make test` and `make lint`, fix issues, then summarize what you did and any assumptions in a short message.

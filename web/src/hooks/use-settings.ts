@@ -15,8 +15,8 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (workingDays: number[]) =>
-      api.put<Settings>('/settings', { working_days: workingDays }),
+    mutationFn: (input: { working_days: number[]; attendance_fractions: number[] }) =>
+      api.put<Settings>('/settings', input),
     onSuccess: (settings) => {
       queryClient.setQueryData(['settings'], settings)
       void queryClient.invalidateQueries({ queryKey: ['attendance'] })

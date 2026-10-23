@@ -43,7 +43,7 @@ function TimelineRow({ project, month, days }: { project: TimelineProject; month
           <p className="truncate text-sm font-medium">{project.name}</p>
           <p className="text-muted-foreground text-xs">
             {project.start_date && project.end_date
-              ? `${formatDateShort(project.start_date)} – ${formatDateShort(project.end_date)}`
+              ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
               : project.start_date
                 ? `Mulai ${formatDateShort(project.start_date)}`
                 : project.end_date
@@ -266,7 +266,7 @@ export function ProyekPage() {
                     <p className="truncate font-medium">{project.name}</p>
                     <p className="text-muted-foreground truncate text-xs">
                       {project.start_date && project.end_date
-                        ? `${formatDateShort(project.start_date)} – ${formatDateShort(project.end_date)}`
+                        ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
                         : 'Tanggal belum diisi'}
                       {project.notes ? ` · ${project.notes}` : ''}
                     </p>

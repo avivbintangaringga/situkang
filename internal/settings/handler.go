@@ -29,7 +29,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateRequest struct {
-	WorkingDays []int `json:"working_days"`
+	WorkingDays         *[]int `json:"working_days"`
+	AttendanceFractions *[]int `json:"attendance_fractions"`
 }
 
 // Update replaces the working days.
@@ -40,7 +41,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.Update(r.Context(), req.WorkingDays)
+	result, err := h.svc.Update(r.Context(), req.WorkingDays, req.AttendanceFractions)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -54,6 +55,8 @@ func writeError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusBadRequest, "Pilih minimal satu hari kerja.")
 	case errors.Is(err, ErrInvalidWorkingDays):
 		httpx.Error(w, http.StatusBadRequest, "Hari kerja tidak valid.")
+	case errors.Is(err, ErrInvalidFractions):
+		httpx.Error(w, http.StatusBadRequest, "Bagian hari tidak valid.")
 	default:
 		slog.Error("settings request failed", "error", err)
 		httpx.Error(w, http.StatusInternalServerError, "Terjadi kesalahan pada server.")

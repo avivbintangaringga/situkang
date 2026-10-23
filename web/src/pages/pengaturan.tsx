@@ -21,8 +21,11 @@ export function PengaturanPage() {
   const settings = useSettings()
   const update = useUpdateSettings()
   const [selection, setSelection] = useState<number[] | null>(null)
+  const [fractionSelection, setFractionSelection] = useState<number[] | null>(null)
 
   const workingDays = selection ?? settings.data?.working_days ?? []
+  const fractions = fractionSelection ?? settings.data?.attendance_fractions ?? []
+  const dirty = selection !== null || fractionSelection !== null
 
   function toggle(day: number) {
     setSelection(
@@ -32,10 +35,24 @@ export function PengaturanPage() {
     )
   }
 
+  function toggleFraction(value: number) {
+    setFractionSelection(
+      fractions.includes(value)
+        ? fractions.filter((item) => item !== value)
+        : [...fractions, value].sort((a, b) => a - b),
+    )
+  }
+
   function save() {
-    if (selection) {
-      update.mutate(selection, { onSuccess: () => setSelection(null) })
-    }
+    update.mutate(
+      { working_days: workingDays, attendance_fractions: fractions },
+      {
+        onSuccess: () => {
+          setSelection(null)
+          setFractionSelection(null)
+        },
+      },
+    )
   }
 
   return (
@@ -93,10 +110,42 @@ export function PengaturanPage() {
       )}
 
       {settings.data && (
+        <>
+          <div>
+            <h2 className="text-sm font-semibold">Bagian hari</h2>
+            <p className="text-muted-foreground text-sm">
+              Pilih bagian hari yang bisa dipilih saat absensi. Penuh dan absen
+              selalu tersedia.
+            </p>
+          </div>
+
+          <div className="divide-y rounded-xl border">
+            {[
+              { value: 1, label: 'Seperempat hari (1/4)' },
+              { value: 2, label: 'Setengah hari (1/2)' },
+              { value: 3, label: 'Tiga per empat hari (3/4)' },
+            ].map((fraction) => (
+              <label
+                key={fraction.value}
+                className="flex h-14 cursor-pointer items-center justify-between gap-3 px-4"
+              >
+                <span className="text-sm font-medium">{fraction.label}</span>
+                <Switch
+                  checked={fractions.includes(fraction.value)}
+                  onCheckedChange={() => toggleFraction(fraction.value)}
+                  aria-label={`Aktifkan ${fraction.label}`}
+                />
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
+      {settings.data && (
         <Button
           className="h-11 w-full"
           onClick={save}
-          disabled={!selection || selection.length === 0 || update.isPending}
+          disabled={!dirty || workingDays.length === 0 || update.isPending}
         >
           {update.isPending ? 'Menyimpan…' : 'Simpan'}
         </Button>

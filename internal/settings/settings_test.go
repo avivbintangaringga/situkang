@@ -49,13 +49,16 @@ func TestGetDefault(t *testing.T) {
 	if len(result.WorkingDays) != 6 || result.WorkingDays[0] != 1 || result.WorkingDays[5] != 6 {
 		t.Fatalf("working days = %v, want Monday-Saturday", result.WorkingDays)
 	}
+	if len(result.AttendanceFractions) != 3 {
+		t.Fatalf("fractions = %v, want 1,2,3", result.AttendanceFractions)
+	}
 }
 
 func TestUpdateRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	svc, sqlDB := testService(t)
 
-	updated, err := svc.Update(ctx, []int{7, 1, 3})
+	updated, err := svc.Update(ctx, &[]int{7, 1, 3}, nil)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -100,7 +103,7 @@ func TestUpdateValidation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := svc.Update(ctx, tc.days); err != tc.want {
+			if _, err := svc.Update(ctx, &tc.days, nil); err != tc.want {
 				t.Fatalf("error = %v, want %v", err, tc.want)
 			}
 		})
@@ -135,5 +138,45 @@ func TestHandler(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "minimal satu hari") {
 		t.Fatalf("empty status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAttendanceFractions(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+
+	// Fractions can be disabled one by one, down to none.
+	updated, err := svc.Update(ctx, nil, &[]int{2})
+	if err != nil {
+		t.Fatalf("Update fractions: %v", err)
+	}
+	if len(updated.AttendanceFractions) != 1 || updated.AttendanceFractions[0] != 2 {
+		t.Fatalf("fractions = %v, want [2]", updated.AttendanceFractions)
+	}
+	if got := len(updated.WorkingDays); got != 6 {
+		t.Fatalf("working days must be untouched, got %d", got)
+	}
+
+	updated, err = svc.Update(ctx, nil, &[]int{})
+	if err != nil {
+		t.Fatalf("disable all fractions: %v", err)
+	}
+	if len(updated.AttendanceFractions) != 0 {
+		t.Fatalf("fractions = %v, want empty", updated.AttendanceFractions)
+	}
+
+	var raw string
+	if err := sqlDB.QueryRowContext(ctx,
+		`SELECT value FROM settings WHERE key = 'attendance_fractions'`).Scan(&raw); err != nil {
+		t.Fatalf("read stored fractions: %v", err)
+	}
+	if raw != "" {
+		t.Fatalf("stored fractions = %q, want empty", raw)
+	}
+
+	for _, invalid := range [][]int{{4}, {0}, {1, 1}, {1, 2, 3, 1}} {
+		if _, err := svc.Update(ctx, nil, &invalid); err != ErrInvalidFractions {
+			t.Fatalf("fractions %v error = %v, want ErrInvalidFractions", invalid, err)
+		}
 	}
 }
