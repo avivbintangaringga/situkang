@@ -27,6 +27,7 @@ import (
 	"situkang/internal/cashadvance"
 	"situkang/internal/clock"
 	"situkang/internal/config"
+	"situkang/internal/dashboard"
 	"situkang/internal/db"
 	"situkang/internal/httpx"
 	"situkang/internal/project"
@@ -75,6 +76,7 @@ func run() error {
 	recapSvc := recap.NewService(sqlDB, appClock)
 	projectSvc := project.NewService(sqlDB, appClock)
 	settingsSvc := settings.NewService(sqlDB, appClock)
+	dashboardSvc := dashboard.NewService(sqlDB, appClock)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -90,7 +92,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, projectSvc, settingsSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, projectSvc, settingsSvc, dashboardSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -123,7 +125,7 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, projectSvc *project.Service, settingsSvc *settings.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, projectSvc *project.Service, settingsSvc *settings.Service, dashboardSvc *dashboard.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
 	workerHandler := worker.NewHandler(workerSvc)
 	attendanceHandler := attendance.NewHandler(attendanceSvc)
@@ -131,6 +133,7 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 	recapHandler := recap.NewHandler(recapSvc)
 	projectHandler := project.NewHandler(projectSvc)
 	settingsHandler := settings.NewHandler(settingsSvc)
+	dashboardHandler := dashboard.NewHandler(dashboardSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -191,6 +194,8 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 
 			protected.Get("/settings", settingsHandler.Get)
 			protected.Put("/settings", settingsHandler.Update)
+
+			protected.Get("/dashboard", dashboardHandler.Get)
 		})
 	})
 

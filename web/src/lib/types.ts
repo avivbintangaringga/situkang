@@ -149,3 +149,26 @@ export type RecapDetail = {
 export type Settings = {
   working_days: number[]
 }
+
+export type DashboardWorker = {
+  worker_id: number
+  name: string
+  role: string
+  quarters: number
+  gross: number
+  advances: number
+  net: number
+}
+
+export type DashboardTotals = {
+  quarters: number
+  gross: number
+  advances: number
+  net: number
+}
+
+export type Dashboard = {
+  workers: DashboardWorker[]
+  totals: DashboardTotals
+  draft_recap_id: number | null
+}

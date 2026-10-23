@@ -38,9 +38,9 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
 
+  /* oxlint-disable react/set-state-in-effect -- reset the form when the sheet opens */
   useEffect(() => {
     if (!open) return
-    // oxlint-disable-next-line react/set-state-in-effect -- reset the form when the sheet opens
     if (fee) {
       setKind(fee.amount < 0 ? 'potongan' : 'bonus')
       setAmount(String(Math.abs(fee.amount)))
@@ -51,6 +51,7 @@ export function ExtraFeeSheet({ open, onOpenChange, recapId, workerId, fee }: Pr
       setDescription('')
     }
   }, [open, fee])
+  /* oxlint-enable react/set-state-in-effect */
 
   const error = add.error ?? update.error ?? remove.error
   const pending = add.isPending || update.isPending || remove.isPending

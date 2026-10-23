@@ -193,7 +193,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
               <Input
                 id="project-start"
                 type="date"
-                className="h-11"
+                className="h-11 min-w-0"
                 {...form.register('start_date')}
               />
             </div>
@@ -202,7 +202,7 @@ export function ProjectFormSheet({ open, onOpenChange, project }: Props) {
               <Input
                 id="project-end"
                 type="date"
-                className="h-11"
+                className="h-11 min-w-0"
                 aria-invalid={Boolean(form.formState.errors.end_date)}
                 {...form.register('end_date')}
               />
