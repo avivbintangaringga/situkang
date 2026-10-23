@@ -121,7 +121,9 @@ export function RecapDetailPage() {
           </div>
           <p className="text-muted-foreground text-xs">#{recap.id}</p>
           <p className="text-muted-foreground text-sm">
-            {formatDate(data.period_start)} - {formatDate(data.period_end)}
+            {recap.start_date && recap.end_date
+              ? `${formatDate(recap.start_date)} - ${formatDate(recap.end_date)}`
+              : 'Semua yang belum dibayar'}
           </p>
         </div>
       </div>

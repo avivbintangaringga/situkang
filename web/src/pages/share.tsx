@@ -58,7 +58,9 @@ export function SharePage() {
             <section className="bg-background space-y-1 rounded-xl border p-4 shadow-sm">
               <h1 className="text-lg font-semibold tracking-tight">{data.recap.name}</h1>
               <p className="text-muted-foreground text-sm">
-                Periode {formatDate(data.period_start)} - {formatDate(data.period_end)}
+                {data.recap.start_date && data.recap.end_date
+                  ? `Periode ${formatDate(data.recap.start_date)} - ${formatDate(data.recap.end_date)}`
+                  : 'Semua yang belum dibayar'}
               </p>
               <span
                 className={cn(
