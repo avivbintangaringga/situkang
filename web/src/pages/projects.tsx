@@ -55,21 +55,9 @@ export function ProjectsPage() {
     colorByProject.set(project.id, color)
     for (const date of project.tagged_days) {
       const list = markers[date] ?? []
-      list.push({ className: cn('size-1.5 rounded-full', color), label: project.name })
+      list.push({ className: cn('size-1 rounded-full', color), label: project.name })
       markers[date] = list
     }
-  }
-
-  for (const [date, list] of Object.entries(markers)) {
-    if (list.length <= 3) continue
-    const hidden = list.length - 3
-    markers[date] = [
-      ...list.slice(0, 3),
-      {
-        className: 'text-[8px] leading-none font-medium text-muted-foreground',
-        label: `+${hidden} proyek lain`,
-      },
-    ]
   }
 
   return (
@@ -139,8 +127,8 @@ export function ProjectsPage() {
             )}
 
             <p className="text-muted-foreground text-xs">
-              Titik menandai hari saat tukang yang ditugaskan hadir. Maksimal tiga
-              titik per hari.
+              Titik menandai hari saat tukang yang ditugaskan hadir, satu titik per
+              proyek.
             </p>
           </>
         )}

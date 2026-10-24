@@ -94,24 +94,13 @@ export function ProjectDetailPage() {
 
   const markers: Record<string, CalendarMarker[]> = {}
   for (const day of projectDays) {
-    const list = day.workers.map((worker) => {
+    markers[day.date] = day.workers.map((worker) => {
       const color = quarterColors[worker.quarters] ?? 'bg-muted-foreground'
       return {
-        className: cn('size-1.5 rounded-full', color),
+        className: cn('size-1 rounded-full', color),
         label: `${worker.name} (${quartersLabel(worker.quarters)})`,
       }
     })
-    if (list.length > 3) {
-      markers[day.date] = [
-        ...list.slice(0, 3),
-        {
-          className: 'text-[8px] leading-none font-medium text-muted-foreground',
-          label: `+${list.length - 3} tukang lain`,
-        },
-      ]
-    } else {
-      markers[day.date] = list
-    }
   }
 
   return (

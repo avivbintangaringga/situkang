@@ -42,21 +42,10 @@ export function AttendanceCalendarPage() {
 
   const markers: Record<string, CalendarMarker[]> = {}
   for (const day of calendar.data?.days ?? []) {
-    const list = day.workers.map((worker) => ({
-      className: cn('size-1.5 rounded-full', quarterColors[worker.quarters] ?? 'bg-muted-foreground'),
+    markers[day.date] = day.workers.map((worker) => ({
+      className: cn('size-1 rounded-full', quarterColors[worker.quarters] ?? 'bg-muted-foreground'),
       label: `${worker.name} (${quartersLabel(worker.quarters)})`,
     }))
-    if (list.length > 3) {
-      markers[day.date] = [
-        ...list.slice(0, 3),
-        {
-          className: 'text-[8px] leading-none font-medium text-muted-foreground',
-          label: `+${list.length - 3} tukang lain`,
-        },
-      ]
-    } else {
-      markers[day.date] = list
-    }
   }
 
   const selectedDay = calendar.data?.days.find((day) => day.date === selectionStart)
