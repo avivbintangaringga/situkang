@@ -20,12 +20,12 @@ export function SharePage() {
     <div className="bg-muted/30 min-h-dvh">
       <header className="bg-background/90 sticky top-0 z-30 border-b backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-semibold">SiTukang</span>
-            <span className="flex items-center gap-2">
-              <img src="/logo.svg" alt="" className="size-6" />
-              <span className="text-muted-foreground text-xs">Rekap gaji</span>
-            </span>
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" className="size-7" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-base font-semibold">SiTukang</span>
+              <span className="text-muted-foreground text-[11px]">Rekap gaji</span>
+            </div>
           </div>
           <ThemeToggle />
         </div>
