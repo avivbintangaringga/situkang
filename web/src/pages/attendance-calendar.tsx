@@ -43,7 +43,7 @@ export function AttendanceCalendarPage() {
   const markers: Record<string, CalendarMarker[]> = {}
   for (const day of calendar.data?.days ?? []) {
     markers[day.date] = day.workers.map((worker) => ({
-      className: cn('size-1 rounded-full', quarterColors[worker.quarters] ?? 'bg-muted-foreground'),
+      className: cn('size-1.5 rounded-full', quarterColors[worker.quarters] ?? 'bg-muted-foreground'),
       label: `${worker.name} (${quartersLabel(worker.quarters)})`,
     }))
   }

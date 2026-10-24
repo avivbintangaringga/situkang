@@ -23,6 +23,9 @@ export type CalendarMarker = {
   label: string
 }
 
+/** Dots shown per day before the overflow counter takes over. */
+const maxVisibleDots = 3
+
 type Props = {
   /** Selected month in YYYY-MM form. */
   month: string
@@ -139,14 +142,25 @@ export function MonthCalendar({
               >
                 {format(day, 'd')}
               </span>
-              <span className="flex min-h-2 flex-wrap items-center justify-center gap-0.5">
-                {dayMarkers.map((marker, index) => (
+              <span className="flex min-h-2 flex-nowrap items-center justify-center gap-0.5">
+                {dayMarkers.slice(0, maxVisibleDots).map((marker, index) => (
                   <span
                     key={`${marker.label}-${index}`}
                     title={marker.label}
                     className={cn('inline-block shrink-0', marker.className)}
                   />
                 ))}
+                {dayMarkers.length > maxVisibleDots && (
+                  <span
+                    title={dayMarkers
+                      .slice(maxVisibleDots)
+                      .map((marker) => marker.label)
+                      .join(', ')}
+                    className="text-muted-foreground shrink-0 text-[8px] leading-none font-medium"
+                  >
+                    +{dayMarkers.length - maxVisibleDots}
+                  </span>
+                )}
               </span>
             </>
           )

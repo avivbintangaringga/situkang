@@ -55,7 +55,7 @@ export function ProjectsPage() {
     colorByProject.set(project.id, color)
     for (const date of project.tagged_days) {
       const list = markers[date] ?? []
-      list.push({ className: cn('size-1 rounded-full', color), label: project.name })
+      list.push({ className: cn('size-1.5 rounded-full', color), label: project.name })
       markers[date] = list
     }
   }

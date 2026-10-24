@@ -97,7 +97,7 @@ export function ProjectDetailPage() {
     markers[day.date] = day.workers.map((worker) => {
       const color = quarterColors[worker.quarters] ?? 'bg-muted-foreground'
       return {
-        className: cn('size-1 rounded-full', color),
+        className: cn('size-1.5 rounded-full', color),
         label: `${worker.name} (${quartersLabel(worker.quarters)})`,
       }
     })
