@@ -229,6 +229,7 @@ func TestValidation(t *testing.T) {
 		{"bad start", Input{Name: "Rumah", Status: "aktif", StartDate: "2026-02-31"}, ErrInvalidDate},
 		{"bad end", Input{Name: "Rumah", Status: "aktif", EndDate: "kemarin"}, ErrInvalidDate},
 		{"reversed range", Input{Name: "Rumah", Status: "aktif", StartDate: "2026-02-05", EndDate: "2026-01-05"}, ErrInvalidRange},
+		{"end without start", Input{Name: "Rumah", Status: "aktif", EndDate: "2026-02-05"}, ErrEndWithoutStart},
 		{"long notes", Input{Name: "Rumah", Status: "aktif", Notes: strings.Repeat("a", 501)}, ErrNotesTooLong},
 		{"zero worker", Input{Name: "Rumah", Status: "aktif", WorkerIDs: []int64{0}}, ErrInvalidWorker},
 	}
@@ -294,8 +295,10 @@ func TestTimeline(t *testing.T) {
 	}
 
 	addAttendance(t, sqlDB, 1, 1, "2026-01-07")
-	addAttendance(t, sqlDB, 2, 1, "2026-01-08")
-	addAttendance(t, sqlDB, 3, 2, "2026-01-09")
+	addAttendance(t, sqlDB, 2, 2, "2026-01-07")
+	addAttendance(t, sqlDB, 3, 1, "2026-01-08")
+	addAttendance(t, sqlDB, 4, 1, "2026-01-02")
+	addAttendance(t, sqlDB, 5, 1, "2026-01-22")
 
 	result, err := svc.Timeline(ctx, "2026-01")
 	if err != nil {
@@ -340,6 +343,8 @@ func TestCalendar(t *testing.T) {
 	addAttendance(t, sqlDB, 1, 1, "2026-01-07")
 	addAttendance(t, sqlDB, 2, 2, "2026-01-07")
 	addAttendance(t, sqlDB, 3, 1, "2026-01-08")
+	addAttendance(t, sqlDB, 4, 1, "2026-01-02")
+	addAttendance(t, sqlDB, 5, 2, "2026-01-22")
 
 	result, err := svc.Calendar(ctx, created.ID, "2026-01")
 	if err != nil {

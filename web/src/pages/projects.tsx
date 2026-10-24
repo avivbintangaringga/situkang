@@ -209,7 +209,11 @@ export function ProjectsPage() {
                       <p className="text-muted-foreground truncate text-xs">
                         {project.start_date && project.end_date
                           ? `${formatDateShort(project.start_date)} - ${formatDateShort(project.end_date)}`
-                          : 'Tanggal belum diisi'}
+                          : project.start_date
+                            ? `Mulai ${formatDateShort(project.start_date)}`
+                            : project.end_date
+                              ? `Selesai ${formatDateShort(project.end_date)}`
+                              : 'Tanggal belum diisi'}
                         {project.notes ? ` · ${project.notes}` : ''}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">

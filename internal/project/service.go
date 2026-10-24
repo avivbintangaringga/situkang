@@ -13,14 +13,15 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("project not found")
-	ErrInvalidName   = errors.New("invalid project name")
-	ErrInvalidStatus = errors.New("invalid project status")
-	ErrInvalidDate   = errors.New("invalid project date")
-	ErrInvalidRange  = errors.New("invalid project date range")
-	ErrNotesTooLong  = errors.New("project notes too long")
-	ErrInvalidWorker = errors.New("invalid project worker")
-	ErrInvalidMonth  = errors.New("invalid month")
+	ErrNotFound        = errors.New("project not found")
+	ErrInvalidName     = errors.New("invalid project name")
+	ErrInvalidStatus   = errors.New("invalid project status")
+	ErrInvalidDate     = errors.New("invalid project date")
+	ErrInvalidRange    = errors.New("invalid project date range")
+	ErrEndWithoutStart = errors.New("project end date without start date")
+	ErrNotesTooLong    = errors.New("project notes too long")
+	ErrInvalidWorker   = errors.New("invalid project worker")
+	ErrInvalidMonth    = errors.New("invalid month")
 )
 
 const (
@@ -327,6 +328,9 @@ func validate(in Input) (projectData, error) {
 		}
 		value := clock.FormatDate(parsed)
 		end = &value
+	}
+	if end != nil && start == nil {
+		return projectData{}, ErrEndWithoutStart
 	}
 	if start != nil && end != nil && *end < *start {
 		return projectData{}, ErrInvalidRange

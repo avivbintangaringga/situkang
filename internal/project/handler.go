@@ -161,6 +161,8 @@ func writeError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusBadRequest, "Status proyek tidak valid.")
 	case errors.Is(err, ErrInvalidDate), errors.Is(err, ErrInvalidRange):
 		httpx.Error(w, http.StatusBadRequest, "Tanggal proyek tidak valid.")
+	case errors.Is(err, ErrEndWithoutStart):
+		httpx.Error(w, http.StatusBadRequest, "Isi tanggal mulai sebelum tanggal selesai.")
 	case errors.Is(err, ErrNotesTooLong):
 		httpx.Error(w, http.StatusBadRequest, "Catatan maksimal 500 karakter.")
 	case errors.Is(err, ErrInvalidMonth):

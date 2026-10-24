@@ -60,6 +60,10 @@ const projectSchema = z
       !values.start_date || !values.end_date || values.end_date >= values.start_date,
     { path: ['end_date'], message: 'Tanggal selesai tidak boleh sebelum tanggal mulai.' },
   )
+  .refine((values) => !values.end_date || Boolean(values.start_date), {
+    path: ['end_date'],
+    message: 'Isi tanggal mulai dulu.',
+  })
 
 type ProjectForm = z.infer<typeof projectSchema>
 
@@ -215,7 +219,10 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
                 onChange={(value) =>
                   form.setValue('start_date', value, { shouldValidate: true })
                 }
-                onClear={() => form.setValue('start_date', '')}
+                onClear={() => {
+                  form.setValue('start_date', '')
+                  form.setValue('end_date', '')
+                }}
                 placeholder="Mulai"
               />
             </div>
@@ -224,6 +231,7 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
               <DatePicker
                 id="project-end"
                 value={form.watch('end_date')}
+                disabled={!form.watch('start_date')}
                 onChange={(value) =>
                   form.setValue('end_date', value, { shouldValidate: true })
                 }

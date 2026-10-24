@@ -307,7 +307,10 @@ func timeline(ctx context.Context, db *sql.DB, from, to string) ([]TimelineProje
 		SELECT pw.project_id, a.date
 		FROM project_workers pw
 		JOIN attendances a ON a.worker_id = pw.worker_id
+		JOIN projects p ON p.id = pw.project_id
 		WHERE a.date BETWEEN ? AND ?
+		  AND (p.start_date IS NULL OR a.date >= p.start_date)
+		  AND (p.end_date IS NULL OR a.date <= p.end_date)
 		GROUP BY pw.project_id, a.date
 		ORDER BY a.date`, from, to)
 	if err != nil {
@@ -352,8 +355,11 @@ func calendarDays(ctx context.Context, db *sql.DB, projectID int64, from, to str
 		SELECT a.date, a.worker_id, w.name, a.quarters
 		FROM attendances a
 		JOIN project_workers pw ON pw.worker_id = a.worker_id
+		JOIN projects p ON p.id = pw.project_id
 		JOIN workers w ON w.id = a.worker_id
 		WHERE pw.project_id = ? AND a.date BETWEEN ? AND ?
+		  AND (p.start_date IS NULL OR a.date >= p.start_date)
+		  AND (p.end_date IS NULL OR a.date <= p.end_date)
 		ORDER BY a.date, w.name COLLATE NOCASE`
 
 	rows, err := db.QueryContext(ctx, query, projectID, from, to)
