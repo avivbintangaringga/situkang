@@ -52,28 +52,6 @@ export function ProjectDetailPage() {
 
   const workerByID = new Map((workers.data ?? []).map((worker) => [worker.id, worker]))
 
-  const markers: Record<string, CalendarMarker[]> = {}
-  for (const day of calendar.data?.days ?? []) {
-    const list = day.workers.map((worker) => {
-      const color = quarterColors[worker.quarters] ?? 'bg-muted-foreground'
-      return {
-        className: cn('size-1.5 rounded-full', color),
-        label: `${worker.name} (${quartersLabel(worker.quarters)})`,
-      }
-    })
-    if (list.length > 3) {
-      markers[day.date] = [
-        ...list.slice(0, 3),
-        {
-          className: 'text-[8px] leading-none font-medium text-muted-foreground',
-          label: `+${list.length - 3} tukang lain`,
-        },
-      ]
-    } else {
-      markers[day.date] = list
-    }
-  }
-
   if (project.isPending) {
     return <Skeleton className="h-64 w-full rounded-xl" />
   }
@@ -106,6 +84,35 @@ export function ProjectDetailPage() {
   if (!project.data) return null
 
   const data = project.data
+
+  // Dots mark attendance only inside the project's own date range.
+  const projectDays = (calendar.data?.days ?? []).filter((day) => {
+    if (data.start_date && day.date < data.start_date) return false
+    if (data.end_date && day.date > data.end_date) return false
+    return true
+  })
+
+  const markers: Record<string, CalendarMarker[]> = {}
+  for (const day of projectDays) {
+    const list = day.workers.map((worker) => {
+      const color = quarterColors[worker.quarters] ?? 'bg-muted-foreground'
+      return {
+        className: cn('size-1.5 rounded-full', color),
+        label: `${worker.name} (${quartersLabel(worker.quarters)})`,
+      }
+    })
+    if (list.length > 3) {
+      markers[day.date] = [
+        ...list.slice(0, 3),
+        {
+          className: 'text-[8px] leading-none font-medium text-muted-foreground',
+          label: `+${list.length - 3} tukang lain`,
+        },
+      ]
+    } else {
+      markers[day.date] = list
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -208,7 +215,7 @@ export function ProjectDetailPage() {
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold">Kalender kehadiran</h2>
           <span className="text-muted-foreground text-xs">
-            {calendar.data?.days.length ?? 0} hari tercatat
+            {projectDays.length} hari tercatat
           </span>
         </div>
 
@@ -258,7 +265,7 @@ export function ProjectDetailPage() {
 
           <div className="px-4 pb-4">
             {(() => {
-              const day = calendar.data?.days.find((item) => item.date === selectedDate)
+              const day = projectDays.find((item) => item.date === selectedDate)
               if (!day || day.workers.length === 0) {
                 return (
                   <p className="text-muted-foreground rounded-xl border p-6 text-center text-sm">
