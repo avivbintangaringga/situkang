@@ -15,9 +15,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DatePicker } from '@/components/date-picker'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Sheet,
   SheetContent,
@@ -100,19 +102,25 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
   const create = useCreateProject()
   const update = useUpdateProject(project?.id ?? 0)
   const remove = useDeleteProject()
-  const workers = useWorkers('', false)
+  const workers = useWorkers('', true)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
   const form = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
     defaultValues: valuesFor(project),
   })
   const selectedWorkerIds = form.watch('worker_ids')
+  const inactiveCount = (workers.data ?? []).filter((worker) => !worker.active).length
+  const visibleWorkers = (workers.data ?? []).filter(
+    (worker) => worker.active || showInactive || selectedWorkerIds.includes(worker.id),
+  )
 
   useEffect(() => {
     if (!open) return
     form.reset(valuesFor(project))
     setConfirmDelete(false)
+    setShowInactive(false)
   }, [open, project, form])
 
   const pending = create.isPending || update.isPending
@@ -252,6 +260,20 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
               Pilih tukang yang ditugaskan ke proyek ini.
             </p>
 
+            {inactiveCount > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                <Label htmlFor="show-inactive-workers" className="text-xs font-normal">
+                  Tampilkan tukang nonaktif
+                </Label>
+                <Switch
+                  id="show-inactive-workers"
+                  size="sm"
+                  checked={showInactive}
+                  onCheckedChange={setShowInactive}
+                />
+              </div>
+            )}
+
             {workers.isPending && (
               <p className="text-muted-foreground text-sm">Memuat tukang…</p>
             )}
@@ -270,18 +292,27 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
               </div>
             )}
 
+            {visibleWorkers.length === 0 && workers.data && workers.data.length > 0 && (
+              <div className="rounded-lg border p-4 text-center">
+                <p className="text-sm">Tidak ada tukang untuk ditampilkan.</p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Nyalakan pilihan tukang nonaktif untuk melihatnya.
+                </p>
+              </div>
+            )}
+
             {workers.data && workers.data.length === 0 && (
               <div className="rounded-lg border p-4 text-center">
-                <p className="text-sm">Belum ada tukang aktif.</p>
+                <p className="text-sm">Belum ada tukang.</p>
                 <p className="text-muted-foreground mt-1 text-xs">
                   Tambahkan tukang dulu di menu Pekerja.
                 </p>
               </div>
             )}
 
-            {workers.data && workers.data.length > 0 && (
+            {visibleWorkers.length > 0 && (
               <ul className="space-y-2">
-                {workers.data.map((worker) => {
+                {visibleWorkers.map((worker) => {
                   const active = selectedWorkerIds.includes(worker.id)
                   return (
                     <li key={worker.id}>
@@ -295,7 +326,14 @@ export function ProjectFormSheet({ open, onOpenChange, project, onDeleted }: Pro
                         )}
                       >
                         <span className="min-w-0">
-                          <span className="block truncate">{worker.name}</span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate">{worker.name}</span>
+                            {!worker.active && (
+                              <Badge variant="secondary" className="shrink-0 text-[10px]">
+                                Nonaktif
+                              </Badge>
+                            )}
+                          </span>
                           <span className="text-muted-foreground block truncate text-xs">
                             {worker.role}
                           </span>

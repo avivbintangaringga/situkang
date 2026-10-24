@@ -186,9 +186,16 @@ export function ProjectDetailPage() {
               return (
                 <li key={id} className="flex items-center justify-between gap-3 px-3 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {worker?.name ?? `Tukang #${id}`}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <p className="truncate text-sm font-medium">
+                        {worker?.name ?? `Tukang #${id}`}
+                      </p>
+                      {worker && !worker.active && (
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          Nonaktif
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-muted-foreground truncate text-xs">
                       {worker?.role ?? '-'}
                     </p>
