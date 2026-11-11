@@ -77,6 +77,7 @@ CREATE TABLE recap_paid (
 CREATE TABLE extra_fees (
     id          INTEGER PRIMARY KEY,
     worker_id   INTEGER NOT NULL REFERENCES workers(id),
+    date        TEXT NOT NULL,
     recap_id    INTEGER REFERENCES recaps(id) ON DELETE CASCADE,
     amount      INTEGER NOT NULL,
     description TEXT NOT NULL,
@@ -136,6 +137,16 @@ func seedAdvance(t *testing.T, sqlDB *sql.DB, workerID int64, date string, amoun
 		workerID, date, amount)
 	if err != nil {
 		t.Fatalf("seed advance: %v", err)
+	}
+}
+
+func seedExtraFee(t *testing.T, sqlDB *sql.DB, workerID int64, date string, amount int64, description string) {
+	t.Helper()
+	_, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO extra_fees (worker_id, date, amount, description, created_at) VALUES (?, ?, ?, ?, '2026-01-01T00:00:00Z')`,
+		workerID, date, amount, description)
+	if err != nil {
+		t.Fatalf("seed extra fee: %v", err)
 	}
 }
 
@@ -272,7 +283,7 @@ func TestDraftCalculation(t *testing.T) {
 	if detail.Totals.Net != 132_000 {
 		t.Fatalf("totals net = %d", detail.Totals.Net)
 	}
-	if detail.PeriodStart != "2026-01-05" || detail.PeriodEnd != "2026-01-08" {
+	if detail.PeriodStart != "2026-01-05" || detail.PeriodEnd != "2026-01-12" {
 		t.Fatalf("period = %s..%s", detail.PeriodStart, detail.PeriodEnd)
 	}
 }
@@ -772,5 +783,155 @@ func TestRecapNameUsesRangeEnd(t *testing.T) {
 	}
 	if detail.Recap.Name != "Rekap Selasa, 20 Oktober 2026" {
 		t.Fatalf("name = %q, want the range end date", detail.Recap.Name)
+	}
+}
+
+func TestDraftIncludesDatedUnsettledFeeInRange(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedExtraFee(t, sqlDB, 1, "2026-01-07", 25_000, "Lembur")
+
+	start, end := "2026-01-05", "2026-01-10"
+	recap, err := svc.Create(ctx, CreateInput{Mode: "custom", StartDate: &start, EndDate: &end})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	detail, err := svc.Detail(ctx, recap.ID)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(detail.Workers) != 1 {
+		t.Fatalf("workers = %d, want 1", len(detail.Workers))
+	}
+	line := detail.Workers[0]
+	if line.Extras != 25_000 || len(line.ExtraFees) != 1 {
+		t.Fatalf("line = %+v, want one 25000 extra", line)
+	}
+	if line.ExtraFees[0].Date != "2026-01-07" || line.ExtraFees[0].Description != "Lembur" {
+		t.Fatalf("fee = %+v", line.ExtraFees[0])
+	}
+	if detail.PeriodStart != "2026-01-07" || detail.PeriodEnd != "2026-01-07" {
+		t.Fatalf("period = %s..%s", detail.PeriodStart, detail.PeriodEnd)
+	}
+
+	if err := svc.Finalize(ctx, recap.ID); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+
+	var settledRecap sql.NullInt64
+	if err := sqlDB.QueryRowContext(ctx,
+		`SELECT recap_id FROM extra_fees WHERE worker_id = 1`).Scan(&settledRecap); err != nil {
+		t.Fatalf("load fee: %v", err)
+	}
+	if !settledRecap.Valid || settledRecap.Int64 != recap.ID {
+		t.Fatalf("fee recap_id = %+v, want %d", settledRecap, recap.ID)
+	}
+
+	final, err := svc.Detail(ctx, recap.ID)
+	if err != nil {
+		t.Fatalf("Detail final: %v", err)
+	}
+	if len(final.Workers) != 1 || final.Workers[0].Extras != 25_000 {
+		t.Fatalf("final workers = %+v", final.Workers)
+	}
+	if len(final.Workers[0].ExtraFees) != 1 || final.Workers[0].ExtraFees[0].Date != "2026-01-07" {
+		t.Fatalf("final fees = %+v", final.Workers[0].ExtraFees)
+	}
+}
+
+func TestDraftExcludesDatedFeeOutsideRange(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-01-06", 4, 100_000)
+	seedExtraFee(t, sqlDB, 1, "2026-01-02", 25_000, "Lembur")
+
+	start, end := "2026-01-05", "2026-01-10"
+	recap, err := svc.Create(ctx, CreateInput{Mode: "custom", StartDate: &start, EndDate: &end})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	detail, err := svc.Detail(ctx, recap.ID)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(detail.Workers) != 1 {
+		t.Fatalf("workers = %d, want 1", len(detail.Workers))
+	}
+	line := detail.Workers[0]
+	if line.Extras != 0 || len(line.ExtraFees) != 0 {
+		t.Fatalf("fee outside range must be excluded: %+v", line)
+	}
+}
+
+func TestFinalizeKeepsUnpaidWorkerFeeUnsettled(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedWorker(t, sqlDB, 2, "Andi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-01-05", 4, 100_000)
+	seedExtraFee(t, sqlDB, 2, "2026-01-06", 15_000, "Bonus")
+
+	recap, err := svc.Create(ctx, CreateInput{Mode: "all_unsettled"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := svc.SetPaid(ctx, recap.ID, 2, false); err != nil {
+		t.Fatalf("SetPaid: %v", err)
+	}
+	if err := svc.Finalize(ctx, recap.ID); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+
+	var feeRecap sql.NullInt64
+	if err := sqlDB.QueryRowContext(ctx,
+		`SELECT recap_id FROM extra_fees WHERE worker_id = 2`).Scan(&feeRecap); err != nil {
+		t.Fatalf("load fee: %v", err)
+	}
+	if feeRecap.Valid {
+		t.Fatal("unpaid worker's dated fee must stay unsettled")
+	}
+}
+
+func TestReopenKeepsDatedFeeAttached(t *testing.T) {
+	ctx := context.Background()
+	svc, sqlDB := testService(t)
+	seedWorker(t, sqlDB, 1, "Budi", 100_000)
+	seedAttendance(t, sqlDB, 1, "2026-01-05", 4, 100_000)
+	seedExtraFee(t, sqlDB, 1, "2026-01-07", 30_000, "Bonus")
+
+	recap, err := svc.Create(ctx, CreateInput{Mode: "all_unsettled"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := svc.Finalize(ctx, recap.ID); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	if err := svc.Reopen(ctx, recap.ID); err != nil {
+		t.Fatalf("Reopen: %v", err)
+	}
+
+	var feeRecap sql.NullInt64
+	if err := sqlDB.QueryRowContext(ctx,
+		`SELECT recap_id FROM extra_fees WHERE worker_id = 1`).Scan(&feeRecap); err != nil {
+		t.Fatalf("load fee: %v", err)
+	}
+	if !feeRecap.Valid || feeRecap.Int64 != recap.ID {
+		t.Fatalf("fee recap_id = %+v, want %d", feeRecap, recap.ID)
+	}
+
+	reopened, err := svc.Detail(ctx, recap.ID)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(reopened.Workers) != 1 || len(reopened.Workers[0].ExtraFees) != 1 {
+		t.Fatalf("reopened workers = %+v", reopened.Workers)
+	}
+	fee := reopened.Workers[0].ExtraFees[0]
+	if fee.Date != "2026-01-07" || fee.Description != "Bonus" || fee.Amount != 30_000 {
+		t.Fatalf("reopened fee = %+v", fee)
 	}
 }

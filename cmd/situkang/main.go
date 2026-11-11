@@ -29,6 +29,7 @@ import (
 	"situkang/internal/config"
 	"situkang/internal/dashboard"
 	"situkang/internal/db"
+	"situkang/internal/extrafee"
 	"situkang/internal/httpx"
 	"situkang/internal/project"
 	"situkang/internal/recap"
@@ -73,6 +74,7 @@ func run() error {
 	workerSvc := worker.NewService(sqlDB, appClock)
 	attendanceSvc := attendance.NewService(sqlDB, appClock)
 	cashAdvanceSvc := cashadvance.NewService(sqlDB, appClock)
+	extraFeeSvc := extrafee.NewService(sqlDB, appClock)
 	recapSvc := recap.NewService(sqlDB, appClock)
 	projectSvc := project.NewService(sqlDB, appClock)
 	settingsSvc := settings.NewService(sqlDB, appClock)
@@ -92,7 +94,7 @@ func run() error {
 		return fmt.Errorf("load frontend: %w", err)
 	}
 
-	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, recapSvc, projectSvc, settingsSvc, dashboardSvc, dist)
+	router := newRouter(sqlDB, authSvc, workerSvc, attendanceSvc, cashAdvanceSvc, extraFeeSvc, recapSvc, projectSvc, settingsSvc, dashboardSvc, dist)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -125,11 +127,12 @@ func run() error {
 	return nil
 }
 
-func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, recapSvc *recap.Service, projectSvc *project.Service, settingsSvc *settings.Service, dashboardSvc *dashboard.Service, dist fs.FS) http.Handler {
+func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, attendanceSvc *attendance.Service, cashAdvanceSvc *cashadvance.Service, extraFeeSvc *extrafee.Service, recapSvc *recap.Service, projectSvc *project.Service, settingsSvc *settings.Service, dashboardSvc *dashboard.Service, dist fs.FS) http.Handler {
 	authHandler := auth.NewHandler(authSvc)
 	workerHandler := worker.NewHandler(workerSvc)
 	attendanceHandler := attendance.NewHandler(attendanceSvc)
 	cashAdvanceHandler := cashadvance.NewHandler(cashAdvanceSvc)
+	extraFeeHandler := extrafee.NewHandler(extraFeeSvc)
 	recapHandler := recap.NewHandler(recapSvc)
 	projectHandler := project.NewHandler(projectSvc)
 	settingsHandler := settings.NewHandler(settingsSvc)
@@ -180,6 +183,11 @@ func newRouter(sqlDB *sql.DB, authSvc *auth.Service, workerSvc *worker.Service, 
 			protected.Post("/cash-advances", cashAdvanceHandler.Create)
 			protected.Put("/cash-advances/{id}", cashAdvanceHandler.Update)
 			protected.Delete("/cash-advances/{id}", cashAdvanceHandler.Delete)
+
+			protected.Get("/extra-fees", extraFeeHandler.List)
+			protected.Post("/extra-fees", extraFeeHandler.Create)
+			protected.Put("/extra-fees/{id}", extraFeeHandler.Update)
+			protected.Delete("/extra-fees/{id}", extraFeeHandler.Delete)
 
 			protected.Get("/recaps", recapHandler.List)
 			protected.Post("/recaps", recapHandler.Create)

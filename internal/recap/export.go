@@ -97,6 +97,11 @@ func periodLabel(line WorkerLine) string {
 	for _, item := range line.CashAdvances {
 		track(item.Date)
 	}
+	for _, fee := range line.ExtraFees {
+		if fee.Date != "" {
+			track(fee.Date)
+		}
+	}
 	if first == "" {
 		return "-"
 	}

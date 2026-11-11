@@ -128,6 +128,15 @@ export type CashAdvance = {
   locked: boolean
 }
 
+export type ExtraFee = {
+  id: number
+  worker_id: number
+  date: string
+  amount: number
+  description: string
+  locked: boolean
+}
+
 export type RecapStatus = 'draft' | 'final'
 export type RecapMode = 'since_monday' | 'all_unsettled' | 'custom'
 
@@ -159,6 +168,7 @@ export type RecapAdvanceItem = {
 export type RecapExtraFee = {
   id: number
   worker_id: number
+  date: string
   amount: number
   description: string
 }

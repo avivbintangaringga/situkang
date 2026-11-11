@@ -38,6 +38,7 @@ type AdvanceItem struct {
 type ExtraFee struct {
 	ID          int64  `json:"id"`
 	WorkerID    int64  `json:"worker_id"`
+	Date        string `json:"date"`
 	Amount      int64  `json:"amount"`
 	Description string `json:"description"`
 }
@@ -95,6 +96,7 @@ type advRow struct {
 type feeRow struct {
 	ID          int64
 	WorkerID    int64
+	Date        string
 	Amount      int64
 	Description string
 }
@@ -318,7 +320,7 @@ func unsettledAdvances(ctx context.Context, q queryer, start, end *string) ([]ad
 
 func feesForRecap(ctx context.Context, q queryer, recapID int64) ([]feeRow, error) {
 	rows, err := q.QueryContext(ctx,
-		`SELECT id, worker_id, amount, description FROM extra_fees WHERE recap_id = ? ORDER BY id`, recapID)
+		`SELECT id, worker_id, date, amount, description FROM extra_fees WHERE recap_id = ? ORDER BY date, id`, recapID)
 	if err != nil {
 		return nil, fmt.Errorf("load extra fees: %w", err)
 	}
@@ -327,13 +329,37 @@ func feesForRecap(ctx context.Context, q queryer, recapID int64) ([]feeRow, erro
 	items := make([]feeRow, 0)
 	for rows.Next() {
 		var item feeRow
-		if err := rows.Scan(&item.ID, &item.WorkerID, &item.Amount, &item.Description); err != nil {
+		if err := rows.Scan(&item.ID, &item.WorkerID, &item.Date, &item.Amount, &item.Description); err != nil {
 			return nil, fmt.Errorf("scan extra fee: %w", err)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("load extra fees: %w", err)
+	}
+	return items, nil
+}
+
+func unsettledFees(ctx context.Context, q queryer, start, end *string) ([]feeRow, error) {
+	clause, args := rangeClause(start, end)
+	query := `SELECT id, worker_id, date, amount, description FROM extra_fees WHERE recap_id IS NULL` + clause + ` ORDER BY date, id`
+
+	rows, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("load unsettled extra fees: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]feeRow, 0)
+	for rows.Next() {
+		var item feeRow
+		if err := rows.Scan(&item.ID, &item.WorkerID, &item.Date, &item.Amount, &item.Description); err != nil {
+			return nil, fmt.Errorf("scan unsettled extra fee: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("load unsettled extra fees: %w", err)
 	}
 	return items, nil
 }
@@ -394,10 +420,10 @@ func upsertPaid(ctx context.Context, q execer, recapID, workerID int64, paid boo
 	return nil
 }
 
-func insertFee(ctx context.Context, q execer, recapID, workerID, amount int64, description, now string) (int64, error) {
+func insertFee(ctx context.Context, q execer, recapID, workerID int64, date string, amount int64, description, now string) (int64, error) {
 	res, err := q.ExecContext(ctx,
-		`INSERT INTO extra_fees (worker_id, recap_id, amount, description, created_at) VALUES (?, ?, ?, ?, ?)`,
-		workerID, recapID, amount, description, now)
+		`INSERT INTO extra_fees (worker_id, recap_id, date, amount, description, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		workerID, recapID, date, amount, description, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert extra fee: %w", err)
 	}
@@ -437,6 +463,16 @@ func settleAttendances(ctx context.Context, q execer, ids []int64, recapID int64
 	for _, id := range ids {
 		if _, err := q.ExecContext(ctx, `UPDATE attendances SET recap_id = ? WHERE id = ?`, recapID, id); err != nil {
 			return fmt.Errorf("settle attendance %d: %w", id, err)
+		}
+	}
+	return nil
+}
+
+func settleFees(ctx context.Context, q execer, ids []int64, recapID int64) error {
+	for _, id := range ids {
+		if _, err := q.ExecContext(ctx,
+			`UPDATE extra_fees SET recap_id = ? WHERE id = ? AND recap_id IS NULL`, recapID, id); err != nil {
+			return fmt.Errorf("settle extra fee %d: %w", id, err)
 		}
 	}
 	return nil

@@ -25,7 +25,7 @@ import {
   useSetRecapPaid,
 } from '@/hooks/use-recaps'
 import { api } from '@/lib/api'
-import { formatDate, formatDays, formatRupiah } from '@/lib/format'
+import { formatDate, formatDateShort, formatDays, formatRupiah } from '@/lib/format'
 import type { RecapExtraFee } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -286,10 +286,15 @@ export function RecapDetailPage() {
                       type="button"
                       disabled={!isDraft}
                       onClick={() => setFeeTarget({ workerId: line.worker_id, fee })}
-                      className="flex w-full items-center justify-between rounded-lg border px-2 py-1.5 text-xs disabled:opacity-70"
+                      className="flex w-full items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-70"
                     >
-                      <span className="truncate">{fee.description}</span>
-                      <span className={cn(fee.amount < 0 && 'text-destructive')}>
+                      <span className="min-w-0 text-left">
+                        <span className="block truncate">{fee.description}</span>
+                        <span className="text-muted-foreground block">
+                          {formatDateShort(fee.date)}
+                        </span>
+                      </span>
+                      <span className={cn('shrink-0', fee.amount < 0 && 'text-destructive')}>
                         {formatRupiah(fee.amount)}
                       </span>
                     </button>

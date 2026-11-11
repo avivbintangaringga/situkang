@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
+import { DayExtraFeeSheet } from '@/components/day-extra-fee-sheet'
 import { MonthCalendar, type CalendarMarker } from '@/components/month-calendar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useWorkerWeek } from '@/hooks/use-attendance'
 import { useCashAdvances } from '@/hooks/use-cash-advances'
+import { useExtraFees } from '@/hooks/use-extra-fees'
 import { useProjects } from '@/hooks/use-projects'
 import { useWorker } from '@/hooks/use-workers'
 import {
@@ -19,7 +21,7 @@ import {
   quartersLabel,
   todayISO,
 } from '@/lib/format'
-import type { CashAdvance } from '@/lib/types'
+import type { CashAdvance, ExtraFee } from '@/lib/types'
 
 const quarterColors: Record<number, string> = {
   1: 'bg-amber-400',
@@ -34,10 +36,13 @@ export function WorkerDetailPage() {
 
   const { data: worker, isPending, isError, error, refetch } = useWorker(workerId)
   const advances = useCashAdvances(workerId)
+  const extraFees = useExtraFees(workerId)
   const projects = useProjects()
 
   const [advanceOpen, setAdvanceOpen] = useState(false)
   const [editingAdvance, setEditingAdvance] = useState<CashAdvance | null>(null)
+  const [extraOpen, setExtraOpen] = useState(false)
+  const [editingExtra, setEditingExtra] = useState<ExtraFee | null>(null)
   const [month, setMonth] = useState(() => todayISO().slice(0, 7))
 
   // oxlint-disable-next-line react/purity -- one snapshot of "this week" per mount
@@ -76,6 +81,10 @@ export function WorkerDetailPage() {
     (sum, advance) => sum + advance.amount,
     0,
   )
+  const extrasTotal = (extraFees.data ?? []).reduce(
+    (sum, fee) => sum + fee.amount,
+    0,
+  )
   const assignedProjects = (projects.data ?? []).filter((project) =>
     project.worker_ids.includes(workerId),
   )
@@ -83,6 +92,11 @@ export function WorkerDetailPage() {
   function openAdvance(advance: CashAdvance | null) {
     setEditingAdvance(advance)
     setAdvanceOpen(true)
+  }
+
+  function openExtraFee(fee: ExtraFee | null) {
+    setEditingExtra(fee)
+    setExtraOpen(true)
   }
 
   return (
@@ -304,11 +318,84 @@ export function WorkerDetailPage() {
             )}
           </section>
 
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold">Tambahan</h2>
+                <p className="text-muted-foreground text-xs">
+                  Total {formatRupiah(extrasTotal)}
+                </p>
+              </div>
+              <Button className="h-9 px-3" onClick={() => openExtraFee(null)}>
+                <Plus className="size-4" aria-hidden />
+                Tambah
+              </Button>
+            </div>
+
+            {extraFees.isPending && <Skeleton className="h-24 w-full rounded-xl" />}
+
+            {extraFees.isError && (
+              <div className="rounded-xl border p-6 text-center text-sm">
+                Tidak dapat memuat tambahan.
+              </div>
+            )}
+
+            {extraFees.data && extraFees.data.length === 0 && (
+              <div className="rounded-xl border p-6 text-center">
+                <p className="text-sm">Belum ada tambahan.</p>
+              </div>
+            )}
+
+            {extraFees.data && extraFees.data.length > 0 && (
+              <ul className="divide-y rounded-xl border">
+                {extraFees.data.map((fee) => (
+                  <li key={fee.id}>
+                    <button
+                      type="button"
+                      disabled={fee.locked}
+                      onClick={() => openExtraFee(fee)}
+                      className="hover:bg-muted/50 flex w-full items-center justify-between gap-3 px-3 py-3 text-left disabled:opacity-70"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">{fee.description}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {formatDateShort(fee.date)}
+                        </p>
+                        {fee.locked && (
+                          <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                            <Lock className="size-3" aria-hidden />
+                            Terkunci rekap
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={
+                          fee.amount < 0
+                            ? 'text-destructive shrink-0 text-sm font-medium'
+                            : 'shrink-0 text-sm font-medium'
+                        }
+                      >
+                        {formatRupiah(fee.amount)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <CashAdvanceSheet
             open={advanceOpen}
             onOpenChange={setAdvanceOpen}
             workerId={workerId}
             advance={editingAdvance}
+          />
+
+          <DayExtraFeeSheet
+            open={extraOpen}
+            onOpenChange={setExtraOpen}
+            workerId={workerId}
+            fee={editingExtra}
           />
         </>
       )}

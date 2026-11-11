@@ -133,7 +133,7 @@ For `custom` and `since_monday`, if a worker has unsettled items dated **before*
 - `net = gross + extras - advances`
 - `paid` flag, default `true`, persisted per worker per draft in `recap_paid` (§6)
 
-**Extra fees** (`extra_fees` table) are added during a draft, belong to a worker and the draft recap (`recap_id` set immediately), have a signed integer `amount` and a required `description`. Editable/deletable while the recap is draft.
+**Extra fees** (`extra_fees` table) are signed bonuses or deductions with a required `date`. They can be added during a draft (belonging to a worker and that draft, `recap_id` set immediately) or recorded standalone per worker per date from the worker page (like kas bon, `recap_id` NULL until a recap settles them). Both have a signed integer `amount` and a required `description`. Drafts include every unsettled dated extra fee inside their range, and finalizing sets `recap_id` on them. Editable/deletable while unsettled or while the recap is draft; settled entries follow the lock rule below.
 
 **Finalize**: in ONE database transaction, for each worker with `paid = true`:
 1. Set `recap_id` on all of that worker's in-range unsettled attendance and kas bon.
@@ -155,7 +155,7 @@ For workers with `paid = false`: their extra fees for this draft are detached (`
 
 ### 5.7 Exports (from a finalized recap, or a draft as preview)
 - **Excel**: generated server-side with excelize at `GET /api/recaps/{id}/export.xlsx`. One summary sheet (all workers) plus optionally one detail sheet with per-day attendance. Rupiah cells use number format, not strings.
-- **Periode label** (both exports and UI): derive it from the items actually included for that worker - earliest attendance/kas bon date to latest - never from the recap `mode`. For `all_unsettled` a worker catching up may span several weeks; the label must show that honestly (`06 Jan 2026 - 18 Jan 2026`). If a worker has no dated items (extra fees only), show the recap's `created_at` date.
+- **Periode label** (both exports and UI): derive it from the items actually included for that worker - earliest attendance, kas bon, or dated extra fee to latest - never from the recap `mode`. For `all_unsettled` a worker catching up may span several weeks; the label must show that honestly (`06 Jan 2026 - 18 Jan 2026`). If a worker truly has no dated items, show the recap's `created_at` date.
 - **WhatsApp**: server returns formatted plain text at `GET /api/recaps/{id}/whatsapp?worker_id=` (per worker, or all workers if omitted). The frontend offers a **Salin** (copy) button and a **Kirim WA** button that opens `https://wa.me/?text=<urlencoded>`. No WhatsApp API.
 
 WhatsApp text for all workers is one compact message: a period line, one line per worker (`Nama: Rp total`), then the overall `Gaji kotor`, optional `Kas bon` and `Tambahan`, and `*Total dibayar*`. Do not repeat the full per-worker breakdown there.
@@ -191,10 +191,10 @@ Create in `migrations/0001_init.sql`. Use `STRICT` tables where possible. Enable
 - `recaps(id, mode, start_date NULL, end_date NULL, status, created_at, finalized_at NULL)` - `mode` is `since_monday` | `all_unsettled` | `custom`
 - `recap_lines(id, recap_id, worker_id, worker_name, worker_role, days_quarters, gross, advances, extras, net)`
 - `recap_paid(recap_id, worker_id, paid INTEGER DEFAULT 1, PRIMARY KEY(recap_id, worker_id))` - the draft's per-worker `paid` toggle; a missing row means `paid = true`. Rows are kept after finalize (they record which workers were skipped) and survive reopen. Cascade-delete with the recap.
-- `extra_fees(id, worker_id, recap_id NULL, amount, description, created_at)` - `recap_id` is nullable because `paid = false` workers have their extras detached on finalize
+- `extra_fees(id, worker_id, date, recap_id NULL, amount, description, created_at)` - `date` is required; `recap_id` is nullable because standalone fees start unsettled and `paid = false` workers have their extras detached on finalize
 - `recap_shares(recap_id PK REFERENCES recaps ON DELETE CASCADE, token UNIQUE, created_at)` - public read-only token for a final recap; one per recap, created on demand and revocable
 
-Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `recap_paid(recap_id)`, `project_workers(worker_id)`, `recap_shares(token)`.
+Add indexes on `attendances(worker_id, date)`, `attendances(recap_id)`, `cash_advances(worker_id, recap_id)`, `cash_advances(source_recap_id)`, `extra_fees(recap_id)`, `extra_fees(date)`, `extra_fees(worker_id)`, `recap_paid(recap_id)`, `project_workers(worker_id)`, `recap_shares(token)`.
 
 ## 7. API conventions
 

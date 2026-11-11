@@ -222,10 +222,15 @@ func (s *Service) SetPaid(ctx context.Context, recapID, workerID int64, paid boo
 	return upsertPaid(ctx, s.db, recapID, workerID, paid)
 }
 
-// AddFee attaches a signed extra fee to the draft.
+// AddFee attaches a signed extra fee to the draft. The fee is dated to the end
+// of the recap range when there is one, otherwise today (Jakarta time).
 func (s *Service) AddFee(ctx context.Context, recapID, workerID, amount int64, description string) (ExtraFee, error) {
-	if err := s.requireDraft(ctx, recapID); err != nil {
+	recap, err := s.get(ctx, s.db, recapID)
+	if err != nil {
 		return ExtraFee{}, err
+	}
+	if recap.Status != "draft" {
+		return ExtraFee{}, ErrLocked
 	}
 	description = strings.TrimSpace(description)
 	if amount == 0 {
@@ -242,11 +247,16 @@ func (s *Service) AddFee(ctx context.Context, recapID, workerID, amount int64, d
 		return ExtraFee{}, ErrInvalidWorker
 	}
 
-	id, err := insertFee(ctx, s.db, recapID, workerID, amount, description, s.clock.Now().UTC().Format(time.RFC3339))
+	date := clock.FormatDate(s.clock.Today())
+	if recap.EndDate != nil {
+		date = *recap.EndDate
+	}
+
+	id, err := insertFee(ctx, s.db, recapID, workerID, date, amount, description, s.clock.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return ExtraFee{}, err
 	}
-	return ExtraFee{ID: id, WorkerID: workerID, Amount: amount, Description: description}, nil
+	return ExtraFee{ID: id, WorkerID: workerID, Date: date, Amount: amount, Description: description}, nil
 }
 
 // UpdateFee edits an extra fee of the draft.
@@ -344,6 +354,14 @@ func (s *Service) Finalize(ctx context.Context, recapID int64) error {
 			advanceIDs = append(advanceIDs, item.ID)
 		}
 		if err := settleAdvances(ctx, tx, advanceIDs, recapID); err != nil {
+			return err
+		}
+
+		feeIDs := make([]int64, 0, len(line.ExtraFees))
+		for _, item := range line.ExtraFees {
+			feeIDs = append(feeIDs, item.ID)
+		}
+		if err := settleFees(ctx, tx, feeIDs, recapID); err != nil {
 			return err
 		}
 
@@ -471,6 +489,11 @@ func compute(ctx context.Context, q queryer, recap Recap) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	pendingFees, err := unsettledFees(ctx, q, recap.StartDate, recap.EndDate)
+	if err != nil {
+		return Detail{}, err
+	}
+	fees = mergeFees(fees, pendingFees)
 	paid, err := paidMap(ctx, q, recap.ID)
 	if err != nil {
 		return Detail{}, err
@@ -549,9 +572,11 @@ func compute(ctx context.Context, q queryer, recap Recap) (Detail, error) {
 		line.ExtraFees = append(line.ExtraFees, ExtraFee{
 			ID:          fee.ID,
 			WorkerID:    fee.WorkerID,
+			Date:        fee.Date,
 			Amount:      fee.Amount,
 			Description: fee.Description,
 		})
+		track(fee.Date)
 	}
 
 	result := Detail{Recap: recap, Workers: make([]WorkerLine, 0, len(lines))}
@@ -585,6 +610,23 @@ func compute(ctx context.Context, q queryer, recap Recap) (Detail, error) {
 	result.PeriodEnd = lastDate
 
 	return result, nil
+}
+
+// mergeFees joins the fees already attached to a draft with the unsettled
+// dated fees in range, keeping one row per id.
+func mergeFees(attached, pending []feeRow) []feeRow {
+	seen := make(map[int64]bool, len(attached)+len(pending))
+	merged := make([]feeRow, 0, len(attached)+len(pending))
+	for _, group := range [][]feeRow{attached, pending} {
+		for _, fee := range group {
+			if seen[fee.ID] {
+				continue
+			}
+			seen[fee.ID] = true
+			merged = append(merged, fee)
+		}
+	}
+	return merged
 }
 
 // computeFinal reads the frozen snapshot so exports and the detail screen keep
@@ -676,9 +718,11 @@ func computeFinal(ctx context.Context, q queryer, recap Recap) (Detail, error) {
 		result.Workers[position].ExtraFees = append(result.Workers[position].ExtraFees, ExtraFee{
 			ID:          fee.ID,
 			WorkerID:    fee.WorkerID,
+			Date:        fee.Date,
 			Amount:      fee.Amount,
 			Description: fee.Description,
 		})
+		track(fee.Date)
 	}
 
 	if firstDate == "" {
