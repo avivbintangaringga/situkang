@@ -1,10 +1,11 @@
 import { addDays, format, parseISO } from 'date-fns'
-import { Banknote, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
+import { Banknote, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CirclePlus, Lock, Search } from 'lucide-react'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { CashAdvanceSheet } from '@/components/cash-advance-sheet'
 import { DatePicker } from '@/components/date-picker'
+import { DayExtraFeeSheet } from '@/components/day-extra-fee-sheet'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,6 +68,7 @@ export function AttendancePage() {
   const [advanceTarget, setAdvanceTarget] = useState<{ workerId: number; name: string } | null>(
     null,
   )
+  const [extraTarget, setExtraTarget] = useState<{ workerId: number; name: string } | null>(null)
 
   const currentDate = data?.date ?? date ?? ''
   const syncedDate = useRef<string | null>(null)
@@ -429,17 +431,30 @@ export function AttendancePage() {
               </div>
 
               {row.quarters > 0 && (
-                <Button
-                  variant="outline"
-                  className="h-9 rounded-full px-4 text-xs"
-                  onClick={() => {
-                    setAdvanceTarget({ workerId: row.worker_id, name: row.name })
-                  }}
-                  disabled={row.locked || !currentDate}
-                >
-                  <Banknote className="size-3.5" aria-hidden />
-                  Kas bon
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-9 rounded-full px-4 text-xs"
+                    onClick={() => {
+                      setAdvanceTarget({ workerId: row.worker_id, name: row.name })
+                    }}
+                    disabled={row.locked || !currentDate}
+                  >
+                    <Banknote className="size-3.5" aria-hidden />
+                    Kas bon
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-9 rounded-full px-4 text-xs"
+                    onClick={() => {
+                      setExtraTarget({ workerId: row.worker_id, name: row.name })
+                    }}
+                    disabled={row.locked || !currentDate}
+                  >
+                    <CirclePlus className="size-3.5" aria-hidden />
+                    Tambahan
+                  </Button>
+                </div>
               )}
             </li>
           ))}
@@ -453,6 +468,17 @@ export function AttendancePage() {
             if (!open) setAdvanceTarget(null)
           }}
           workerId={advanceTarget.workerId}
+          defaultDate={currentDate}
+        />
+      )}
+
+      {extraTarget && (
+        <DayExtraFeeSheet
+          open={Boolean(extraTarget)}
+          onOpenChange={(open) => {
+            if (!open) setExtraTarget(null)
+          }}
+          workerId={extraTarget.workerId}
           defaultDate={currentDate}
         />
       )}
